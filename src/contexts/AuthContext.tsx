@@ -1,5 +1,5 @@
 
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { User } from '../types';
 import { toast } from 'sonner';
 
@@ -24,8 +24,8 @@ const MOCK_USER: User = {
 const MOCK_PASSWORD = 'admin123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   useEffect(() => {
     // Check if user is logged in from localStorage
