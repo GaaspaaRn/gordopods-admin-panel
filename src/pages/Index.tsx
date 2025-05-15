@@ -16,14 +16,14 @@ export default function Index() {
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center pt-4">
-          <Link to="/admin">
+          <Link to="/z1k4adm">
             <Button className="w-full md:w-auto">
               <Settings size={18} className="mr-2" />
               Acessar Painel Admin
             </Button>
           </Link>
           
-          <Link to="/loja">
+          <Link to="/">
             <Button variant="outline" className="w-full md:w-auto">
               <ShoppingCart size={18} className="mr-2" />
               Ver Loja

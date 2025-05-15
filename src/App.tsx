@@ -9,7 +9,6 @@ import { CategoryProvider } from "./contexts/CategoryContext";
 import { StoreSettingsProvider } from "./contexts/StoreSettingsContext";
 import { ProductProvider } from "./contexts/ProductContext";
 import { CartProvider } from "./contexts/CartContext";
-import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/admin/Dashboard";
 import Categories from "./pages/admin/Categories";
@@ -54,13 +53,13 @@ const App = () => (
                 <BrowserRouter>
                   <Routes>
                     {/* Public routes */}
-                    <Route path="/" element={<Index />} />
+                    <Route path="/" element={<StoreFront />} />
                     <Route path="/login" element={<Login />} />
-                    <Route path="/loja" element={<StoreFront />} />
+                    <Route path="/loja" element={<Navigate to="/" replace />} />
                     
-                    {/* Protected admin routes */}
+                    {/* Protected admin routes - moved to /z1k4adm */}
                     <Route 
-                      path="/admin" 
+                      path="/z1k4adm" 
                       element={
                         <ProtectedRoute>
                           <Dashboard />
@@ -68,7 +67,7 @@ const App = () => (
                       } 
                     />
                     <Route 
-                      path="/admin/categorias" 
+                      path="/z1k4adm/categorias" 
                       element={
                         <ProtectedRoute>
                           <Categories />
@@ -76,7 +75,7 @@ const App = () => (
                       } 
                     />
                     <Route 
-                      path="/admin/produtos" 
+                      path="/z1k4adm/produtos" 
                       element={
                         <ProtectedRoute>
                           <Products />
@@ -84,7 +83,7 @@ const App = () => (
                       } 
                     />
                     <Route 
-                      path="/admin/pedidos" 
+                      path="/z1k4adm/pedidos" 
                       element={
                         <ProtectedRoute>
                           <Orders />
@@ -92,7 +91,7 @@ const App = () => (
                       } 
                     />
                     <Route 
-                      path="/admin/personalizacao" 
+                      path="/z1k4adm/personalizacao" 
                       element={
                         <ProtectedRoute>
                           <StoreCustomization />
@@ -100,7 +99,7 @@ const App = () => (
                       } 
                     />
                     <Route 
-                      path="/admin/configuracoes" 
+                      path="/z1k4adm/configuracoes" 
                       element={
                         <ProtectedRoute>
                           <Settings />

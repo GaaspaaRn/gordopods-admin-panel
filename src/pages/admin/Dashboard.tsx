@@ -103,7 +103,7 @@ export default function Dashboard() {
         <h2 className="text-xl font-semibold mt-8 mb-4">Ações Rápidas</h2>
         
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <Link to="/admin/produtos/novo">
+          <Link to="/z1k4adm/produtos/novo">
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex flex-col items-center justify-center gap-2"
@@ -113,7 +113,7 @@ export default function Dashboard() {
             </Button>
           </Link>
           
-          <Link to="/admin/categorias">
+          <Link to="/z1k4adm/categorias">
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex flex-col items-center justify-center gap-2"
@@ -123,7 +123,7 @@ export default function Dashboard() {
             </Button>
           </Link>
           
-          <Link to="/admin/pedidos">
+          <Link to="/z1k4adm/pedidos">
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex flex-col items-center justify-center gap-2"
@@ -133,7 +133,7 @@ export default function Dashboard() {
             </Button>
           </Link>
           
-          <Link to="/admin/personalizacao">
+          <Link to="/z1k4adm/personalizacao">
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex flex-col items-center justify-center gap-2"
@@ -143,7 +143,7 @@ export default function Dashboard() {
             </Button>
           </Link>
           
-          <Link to="/admin/configuracoes">
+          <Link to="/z1k4adm/configuracoes">
             <Button
               variant="outline"
               className="w-full h-auto py-4 flex flex-col items-center justify-center gap-2"

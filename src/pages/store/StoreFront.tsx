@@ -80,7 +80,7 @@ export default function StoreFront() {
                 />
               ) : null}
               
-              <Link to="/loja" className="text-xl font-bold" style={{ color: primaryColor }}>
+              <Link to="/" className="text-xl font-bold" style={{ color: primaryColor }}>
                 {storeSettings.storeName}
               </Link>
             </div>
@@ -137,7 +137,7 @@ export default function StoreFront() {
         >
           <div className="pt-2 pb-4 px-4 space-y-1 bg-white">
             <Button variant="ghost" className="w-full justify-start" asChild>
-              <Link to="/loja">
+              <Link to="/">
                 <Home className="h-5 w-5 mr-2" />
                 <span>Início</span>
               </Link>
