@@ -54,7 +54,7 @@ type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 const ShoppingCart = () => {
   const { cart, isCartOpen, toggleCart, closeCart, updateQuantity, removeItem } = useCart();
-  const { deliverySettings, storeConfig } = useStoreSettings();
+  const { deliverySettings, storeConfig, storeSettings } = useStoreSettings();
   
   // State for checkout steps
   const [currentStep, setCurrentStep] = useState<CheckoutStep>(CheckoutStep.CART_REVIEW);
@@ -203,7 +203,7 @@ const ShoppingCart = () => {
     });
     
     // Format WhatsApp message
-    let message = `*Pedido Loja ${storeConfig.storeName || 'Gordopods'}!*
+    let message = `*Pedido Loja ${storeSettings.storeName || 'Gordopods'}!*
 *Número do Pedido:* #${orderNumber}
 
 *Cliente:* ${data.name}
