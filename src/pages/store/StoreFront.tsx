@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useStoreSettings } from '@/contexts/StoreSettingsContext';
 import { useProducts } from '@/contexts/ProductContext';
@@ -9,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SocialLink, Product } from '@/types';
 import CategoryNavigation from '@/components/store/CategoryNavigation';
 import ProductCard from '@/components/store/ProductCard';
-import ShoppingCart as ShoppingCartComponent from '@/components/store/ShoppingCart';
+import ShoppingCartComponent from '@/components/store/ShoppingCart';
 import { useCart } from '@/contexts/CartContext';
 
 export default function StoreFront() {
