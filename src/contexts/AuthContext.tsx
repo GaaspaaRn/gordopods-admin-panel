@@ -24,8 +24,8 @@ const MOCK_USER: User = {
 const MOCK_PASSWORD = 'admin123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is logged in from localStorage
