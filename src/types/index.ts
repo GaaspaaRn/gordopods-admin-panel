@@ -94,3 +94,28 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
 }
+
+// New types for cart functionality
+export interface SelectedVariation {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceModifier: number;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  basePrice: number;
+  selectedVariations: SelectedVariation[];
+  totalPrice: number;
+  imageUrl?: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  subtotal: number;
+}

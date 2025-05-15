@@ -6,13 +6,34 @@ import { useCategories } from '@/contexts/CategoryContext';
 import { Link } from 'react-router-dom';
 import { Home, ShoppingCart, Menu, X, Phone, Mail, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SocialLink } from '@/types';
+import { SocialLink, Product } from '@/types';
+import CategoryNavigation from '@/components/store/CategoryNavigation';
+import ProductCard from '@/components/store/ProductCard';
+import ShoppingCart as ShoppingCartComponent from '@/components/store/ShoppingCart';
+import { useCart } from '@/contexts/CartContext';
 
 export default function StoreFront() {
   const { storeSettings, isLoading: isLoadingSettings } = useStoreSettings();
   const { products, isLoading: isLoadingProducts } = useProducts();
   const { categories, isLoading: isLoadingCategories } = useCategories();
+  const { cart, toggleCart } = useCart();
+  
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  
+  // Filter products based on selected category
+  useEffect(() => {
+    if (!isLoadingProducts) {
+      if (selectedCategoryId) {
+        setFilteredProducts(products.filter(
+          product => product.active && product.categoryId === selectedCategoryId
+        ));
+      } else {
+        setFilteredProducts(products.filter(product => product.active));
+      }
+    }
+  }, [selectedCategoryId, products, isLoadingProducts]);
   
   // Scroll to top when the component mounts
   useEffect(() => {
@@ -83,17 +104,27 @@ export default function StoreFront() {
             
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-10">
-              {/* Placeholder for category navigation */}
+              {/* Category navigation */}
               <div className="relative">
-                {/* Categories will be rendered here in step 3 */}
+                <CategoryNavigation 
+                  categories={categories}
+                  selectedCategoryId={selectedCategoryId}
+                  onSelectCategory={setSelectedCategoryId}
+                />
               </div>
             </nav>
             
             {/* Desktop Cart Button */}
             <div className="hidden md:flex items-center">
-              <Button variant="outline" className="ml-8 inline-flex items-center">
+              <Button 
+                variant="outline" 
+                className="ml-8 inline-flex items-center"
+                onClick={toggleCart}
+              >
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                <span>Carrinho (0)</span>
+                <span>
+                  Carrinho ({cart.items.reduce((sum, item) => sum + item.quantity, 0)})
+                </span>
               </Button>
             </div>
           </div>
@@ -113,15 +144,32 @@ export default function StoreFront() {
               </Link>
             </Button>
             
-            {/* Categories will be rendered here in step 3 */}
+            {/* Mobile Categories */}
+            <div className="border-t my-2 pt-2">
+              <p className="text-sm font-medium text-gray-500 mb-2">Categorias</p>
+              <CategoryNavigation 
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={(categoryId) => {
+                  setSelectedCategoryId(categoryId);
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-col items-start gap-1"
+              />
+            </div>
+            
             <div className="border-t my-2"></div>
             
             <Button 
               variant="outline" 
               className="w-full justify-start mt-2"
+              onClick={() => {
+                toggleCart();
+                setMobileMenuOpen(false);
+              }}
             >
               <ShoppingCart className="h-5 w-5 mr-2" />
-              <span>Carrinho (0)</span>
+              <span>Carrinho ({cart.items.reduce((sum, item) => sum + item.quantity, 0)})</span>
             </Button>
           </div>
         </div>
@@ -183,74 +231,54 @@ export default function StoreFront() {
           </div>
         </div>
 
-        {/* Placeholders for Categories and Products list */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-6" style={{ color: secondaryColor }}>
+        {/* Mobile Category Navigation (visible only on mobile) */}
+        <div className="md:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <h2 className="text-lg font-semibold mb-3" style={{ color: secondaryColor }}>
               Categorias
             </h2>
-            
-            {/* Categories placeholder - will be populated in step 3 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.map((category) => (
-                <div 
-                  key={category.id}
-                  className="bg-gray-100 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-200 transition"
-                >
-                  {category.name}
-                </div>
-              ))}
-            </div>
+            <CategoryNavigation 
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={setSelectedCategoryId}
+              className="flex-wrap"
+            />
+          </div>
+        </div>
+
+        {/* Products */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Category Title */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-xl font-semibold" style={{ color: secondaryColor }}>
+              {selectedCategoryId 
+                ? categories.find(c => c.id === selectedCategoryId)?.name || "Produtos"
+                : "Todos os Produtos"}
+            </h2>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-semibold mb-6" style={{ color: secondaryColor }}>
-              Produtos em Destaque
-            </h2>
-            
-            {/* Products placeholder - will be populated in step 3 */}
+          {/* Product Grid */}
+          {filteredProducts.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+              <h3 className="text-lg font-medium text-gray-600 mb-2">
+                Nenhum produto encontrado
+              </h3>
+              <p className="text-gray-500">
+                Não há produtos disponíveis nesta categoria.
+              </p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.slice(0, 4).map((product) => (
-                <div 
-                  key={product.id}
-                  className="bg-white border rounded-lg overflow-hidden hover:shadow-md transition"
-                >
-                  <div className="h-48 overflow-hidden bg-gray-200">
-                    {product.images.length > 0 && (
-                      <img
-                        src={(product.images.find(img => img.isMain) || product.images[0]).url}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                          e.currentTarget.src = "https://via.placeholder.com/300?text=Imagem";
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-medium">{product.name}</h3>
-                    <p className="text-gray-500 text-sm mt-1 line-clamp-2">
-                      {product.description.substring(0, 100)}
-                      {product.description.length > 100 ? '...' : ''}
-                    </p>
-                    <div className="mt-2 font-bold" style={{ color: secondaryColor }}>
-                      {product.price.toLocaleString('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL'
-                      })}
-                    </div>
-                  </div>
-                </div>
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          </div>
+          )}
         </div>
       </main>
 
-      {/* Cart summary placeholder - will be implemented in step 4 */}
-      <div id="app-cart-summary" className="hidden">
-        {/* Cart summary will be implemented in step 4 */}
-      </div>
+      {/* Shopping Cart */}
+      <ShoppingCartComponent />
       
       <footer className="bg-gray-100 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

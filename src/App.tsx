@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
 import { StoreSettingsProvider } from "./contexts/StoreSettingsContext";
 import { ProductProvider } from "./contexts/ProductContext";
+import { CartProvider } from "./contexts/CartContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/admin/Dashboard";
@@ -45,63 +46,65 @@ const App = () => (
       <CategoryProvider>
         <StoreSettingsProvider>
           <ProductProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/loja" element={<StoreFront />} />
-                  
-                  {/* Protected admin routes */}
-                  <Route 
-                    path="/admin" 
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/categorias" 
-                    element={
-                      <ProtectedRoute>
-                        <Categories />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/produtos" 
-                    element={
-                      <ProtectedRoute>
-                        <Products />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/personalizacao" 
-                    element={
-                      <ProtectedRoute>
-                        <StoreCustomization />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/configuracoes" 
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  
-                  {/* Catch all route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
+            <CartProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/" element={<Index />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/loja" element={<StoreFront />} />
+                    
+                    {/* Protected admin routes */}
+                    <Route 
+                      path="/admin" 
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin/categorias" 
+                      element={
+                        <ProtectedRoute>
+                          <Categories />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin/produtos" 
+                      element={
+                        <ProtectedRoute>
+                          <Products />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin/personalizacao" 
+                      element={
+                        <ProtectedRoute>
+                          <StoreCustomization />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin/configuracoes" 
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    
+                    {/* Catch all route */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </CartProvider>
           </ProductProvider>
         </StoreSettingsProvider>
       </CategoryProvider>
