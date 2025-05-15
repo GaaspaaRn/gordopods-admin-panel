@@ -13,15 +13,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user for development
+// Updated admin user credentials
 const MOCK_USER: User = {
   id: '1',
-  email: 'admin@gordopods.com',
+  email: 'z1k4p0rt0@gmail.com',
   name: 'Administrador',
 };
 
-// Mock password for development
-const MOCK_PASSWORD = 'admin123';
+// Updated password for the new admin user
+const MOCK_PASSWORD = 'g0rd0p0ds228';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Simulating API call with 500ms delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Simple mock authentication
+      // Updated mock authentication with new credentials
       if (email.toLowerCase() === MOCK_USER.email && password === MOCK_PASSWORD) {
         setUser(MOCK_USER);
         localStorage.setItem('user', JSON.stringify(MOCK_USER));

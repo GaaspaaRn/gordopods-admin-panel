@@ -21,7 +21,8 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
-        navigate('/admin');
+        // Updated redirection to new admin path
+        navigate('/z1k4adm');
       }
     } finally {
       setIsSubmitting(false);
@@ -53,7 +54,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@gordopods.com"
+                  placeholder="digite seu email"
                   required
                 />
               </div>
@@ -84,7 +85,7 @@ export default function Login() {
         </Card>
         
         <div className="mt-4 text-center text-sm text-gray-500">
-          <p>Credenciais de teste: admin@gordopods.com / admin123</p>
+          <p>Painel administrativo Gordopods</p>
         </div>
       </div>
     </div>
