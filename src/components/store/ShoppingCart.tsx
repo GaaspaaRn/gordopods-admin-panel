@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShoppingCart as CartIcon, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
+import { ShoppingCart as CartIcon, Plus, Minus, Trash2, ArrowRight, Send, Check } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Neighborhood } from "@/types";
+import { Neighborhood, Order } from "@/types";
+import { toast } from "sonner";
 
 // Define checkout steps
 enum CheckoutStep {
@@ -53,11 +54,14 @@ const customerFormSchema = z.object({
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 const ShoppingCart = () => {
-  const { cart, isCartOpen, toggleCart, closeCart, updateQuantity, removeItem } = useCart();
+  const { cart, isCartOpen, toggleCart, closeCart, updateQuantity, removeItem, saveOrderToDatabase } = useCart();
   const { deliverySettings, storeConfig, storeSettings } = useStoreSettings();
   
   // State for checkout steps
   const [currentStep, setCurrentStep] = useState<CheckoutStep>(CheckoutStep.CART_REVIEW);
+  
+  // State for processing order
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   
   // Selected delivery option and cost
   const [deliveryCost, setDeliveryCost] = useState(0);
@@ -149,99 +153,204 @@ const ShoppingCart = () => {
     }
   };
   
+  // Generate a unique order number
+  const generateOrderNumber = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${timestamp}${random}`;
+  };
+  
   // Handle form submission and WhatsApp checkout
-  const onSubmit = (data: CustomerFormValues) => {
-    // Format address based on delivery option
-    let address = '';
-    if (data.deliveryOption !== "pickup") {
-      address = `${data.street}, ${data.number}`;
-      if (data.complement) {
-        address += `, ${data.complement}`;
-      }
-      address += ` - ${data.district}`;
-    }
+  const onSubmit = async (data: CustomerFormValues) => {
+    // Prevent multiple submissions
+    if (isProcessingOrder) return;
+    setIsProcessingOrder(true);
     
-    // Format delivery method info
-    let deliveryMethod = '';
-    if (data.deliveryOption === "pickup") {
-      deliveryMethod = "Retirada no Local";
-    } else if (data.deliveryOption === "fixedRate") {
-      deliveryMethod = `Entrega com Taxa Fixa: ${deliverySettings.fixedRate.fee.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}`;
-    } else if (data.deliveryOption === "neighborhood") {
-      deliveryMethod = `Entrega para ${selectedNeighborhood?.name}: ${selectedNeighborhood?.fee.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}`;
-    }
-    
-    // Generate a simple order number
-    const orderNumber = `${Date.now().toString().slice(-6)}`;
-    
-    // Format order items
-    let orderItems = '';
-    cart.items.forEach(item => {
-      orderItems += `\n- ${item.quantity}x ${item.productName}`;
-      
-      // Add variations
-      if (item.selectedVariations.length > 0) {
-        orderItems += ' (';
-        orderItems += item.selectedVariations.map(v => `${v.groupName}: ${v.optionName}`).join(', ');
-        orderItems += ')';
+    try {
+      // Validate that cart has items
+      if (cart.items.length === 0) {
+        toast.error('Seu carrinho está vazio. Adicione itens antes de finalizar.');
+        setIsProcessingOrder(false);
+        return;
       }
       
-      // Add price
-      orderItems += ` - ${(item.totalPrice / item.quantity).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })} cada = ${item.totalPrice.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}`;
-    });
-    
-    // Format WhatsApp message
-    let message = `*Pedido Loja ${storeSettings.storeName || 'Gordopods'}!*
+      // Generate unique order number
+      const orderNumber = generateOrderNumber();
+      
+      // Format address based on delivery option
+      let address = '';
+      if (data.deliveryOption !== "pickup") {
+        if (!data.street || !data.number || !data.district) {
+          toast.error('Por favor, preencha todos os campos de endereço.');
+          setIsProcessingOrder(false);
+          return;
+        }
+        
+        address = `${data.street}, ${data.number}`;
+        if (data.complement) {
+          address += `, ${data.complement}`;
+        }
+        address += ` - ${data.district}`;
+      }
+      
+      // Format delivery method info
+      let deliveryMethod = '';
+      let deliveryOptionType: 'pickup' | 'fixedRate' | 'neighborhood' = 'pickup';
+      let neighborhoodIdName = { id: '', name: '' };
+      
+      if (data.deliveryOption === "pickup") {
+        deliveryMethod = "Retirada no Local";
+        deliveryOptionType = "pickup";
+      } else if (data.deliveryOption === "fixedRate") {
+        deliveryMethod = `Entrega com Taxa Fixa: ${deliverySettings.fixedRate.fee.toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        })}`;
+        deliveryOptionType = "fixedRate";
+      } else if (data.deliveryOption === "neighborhood") {
+        deliveryOptionType = "neighborhood";
+        if (selectedNeighborhood) {
+          deliveryMethod = `Entrega para ${selectedNeighborhood.name}: ${selectedNeighborhood.fee.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          })}`;
+          neighborhoodIdName = { 
+            id: selectedNeighborhood.id, 
+            name: selectedNeighborhood.name 
+          };
+        }
+      }
+      
+      // Format order items
+      let orderItems = '';
+      cart.items.forEach(item => {
+        orderItems += `\n- ${item.quantity}x ${item.productName}`;
+        
+        // Add variations
+        if (item.selectedVariations.length > 0) {
+          orderItems += ' (';
+          orderItems += item.selectedVariations.map(v => `${v.groupName}: ${v.optionName}`).join(', ');
+          orderItems += ')';
+        }
+        
+        // Add price
+        orderItems += ` - ${(item.totalPrice / item.quantity).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        })} cada = ${item.totalPrice.toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        })}`;
+      });
+      
+      // Calculate total
+      const total = calculateTotal();
+      
+      // Create order object for database
+      const order: Order = {
+        id: crypto.randomUUID(),
+        orderNumber,
+        customer: {
+          name: data.name,
+          phone: data.phone,
+          address: data.deliveryOption !== "pickup" ? {
+            street: data.street || '',
+            number: data.number || '',
+            complement: data.complement,
+            district: data.district || '',
+          } : undefined,
+        },
+        items: cart.items,
+        subtotal: cart.subtotal,
+        deliveryOption: {
+          type: deliveryOptionType,
+          name: deliveryMethod,
+          fee: deliveryCost,
+          neighborhoodId: neighborhoodIdName.id,
+          neighborhoodName: neighborhoodIdName.name,
+        },
+        total,
+        notes: data.notes,
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        whatsappSent: false,
+      };
+      
+      // Format WhatsApp message
+      let message = `*Pedido Loja ${storeSettings.storeName || 'Gordopods'}!*
 *Número do Pedido:* #${orderNumber}
 
 *Cliente:* ${data.name}
 *Telefone:* ${data.phone}`;
 
-    // Add address if not pickup
-    if (data.deliveryOption !== "pickup") {
-      message += `\n*Endereço:* ${address}`;
-    }
+      // Add address if not pickup
+      if (data.deliveryOption !== "pickup") {
+        message += `\n*Endereço:* ${address}`;
+      }
 
-    message += `\n\n*Itens do Pedido:*${orderItems}
+      message += `\n\n*Itens do Pedido:*${orderItems}
 
 *Subtotal:* ${cart.subtotal.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    })}
+        style: 'currency',
+        currency: 'BRL'
+      })}
 *${data.deliveryOption === "pickup" ? "Retirada no Local" : "Taxa de Entrega"}:* ${data.deliveryOption === "pickup" ? "R$ 0,00" : deliveryCost.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    })}
-*Total Geral:* ${calculateTotal().toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    })}`;
+        style: 'currency',
+        currency: 'BRL'
+      })}
+*Total Geral:* ${total.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      })}`;
 
-    // Add notes if any
-    if (data.notes) {
-      message += `\n\n*Observações:* ${data.notes}`;
+      // Add notes if any
+      if (data.notes) {
+        message += `\n\n*Observações:* ${data.notes}`;
+      }
+      
+      // Get WhatsApp number from store config
+      // Remove all non-digits
+      const whatsappNumber = storeConfig.whatsappNumber.replace(/\D/g, '');
+      
+      // Ensure the WhatsApp number is valid
+      if (!whatsappNumber || whatsappNumber.length < 10) {
+        toast.error('Número de WhatsApp da loja não configurado corretamente.');
+        setIsProcessingOrder(false);
+        return;
+      }
+      
+      // Save order to database before redirecting (in parallel)
+      await saveOrderToDatabase({
+        ...order,
+        whatsappSent: true,
+      });
+      
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      
+      // Close cart
+      closeCart();
+      
+      // Reset checkout step for next time
+      setCurrentStep(CheckoutStep.CART_REVIEW);
+      
+      // Reset form
+      form.reset();
+      
+      // Show success message
+      toast.success('Redirecionando para o WhatsApp');
+      
+      // Redirect to WhatsApp with small delay to allow toast to be seen
+      setTimeout(() => {
+        window.location.href = whatsappUrl;
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error processing order:', error);
+      toast.error('Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.');
+    } finally {
+      setIsProcessingOrder(false);
     }
-    
-    // Get WhatsApp number from store config
-    const whatsappNumber = storeConfig.whatsappNumber.replace(/\D/g, '');
-    
-    // Create WhatsApp URL
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    
-    // Redirect to WhatsApp
-    window.location.href = whatsappUrl;
   };
   
   // Reset checkout when cart is closed
@@ -690,8 +799,18 @@ const ShoppingCart = () => {
                 <Button 
                   type="submit" 
                   className="w-full"
+                  disabled={isProcessingOrder}
                 >
-                  Finalizar no WhatsApp
+                  {isProcessingOrder ? (
+                    <>
+                      <span className="mr-2">Processando...</span>
+                      <div className="h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin"></div>
+                    </>
+                  ) : (
+                    <>
+                      Finalizar no WhatsApp <Send className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

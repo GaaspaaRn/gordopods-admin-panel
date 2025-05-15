@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/admin/Dashboard";
 import Categories from "./pages/admin/Categories";
 import Products from "./pages/admin/Products";
+import Orders from "./pages/admin/Orders";
 import StoreCustomization from "./pages/admin/StoreCustomization";
 import Settings from "./pages/admin/Settings";
 import StoreFront from "./pages/store/StoreFront";
@@ -79,6 +80,14 @@ const App = () => (
                       element={
                         <ProtectedRoute>
                           <Products />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin/pedidos" 
+                      element={
+                        <ProtectedRoute>
+                          <Orders />
                         </ProtectedRoute>
                       } 
                     />

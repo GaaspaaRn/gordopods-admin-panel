@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -118,4 +117,33 @@ export interface CartItem {
 export interface Cart {
   items: CartItem[];
   subtotal: number;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customer: {
+    name: string;
+    phone: string;
+    address?: {
+      street: string;
+      number: string;
+      complement?: string;
+      district: string;
+    };
+  };
+  items: CartItem[];
+  subtotal: number;
+  deliveryOption: {
+    type: 'pickup' | 'fixedRate' | 'neighborhood';
+    name: string;
+    fee: number;
+    neighborhoodId?: string;
+    neighborhoodName?: string;
+  };
+  total: number;
+  notes?: string;
+  status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  createdAt: string;
+  whatsappSent: boolean;
 }

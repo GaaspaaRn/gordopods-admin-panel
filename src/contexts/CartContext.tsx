@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CartItem, Cart, SelectedVariation, Product } from '@/types';
+import { CartItem, Cart, SelectedVariation, Product, Order } from '@/types';
 import { toast } from 'sonner';
+import { useStoreSettings } from './StoreSettingsContext';
 
 interface CartContextType {
   cart: Cart;
@@ -13,6 +14,7 @@ interface CartContextType {
   toggleCart: () => void;
   closeCart: () => void;
   openCart: () => void;
+  saveOrderToDatabase: (order: Order) => Promise<boolean>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -20,6 +22,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>({ items: [], subtotal: 0 });
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { storeConfig } = useStoreSettings();
 
   // Load cart from localStorage
   useEffect(() => {
@@ -155,6 +158,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const toggleCart = () => setIsCartOpen(!isCartOpen);
   const closeCart = () => setIsCartOpen(false);
   const openCart = () => setIsCartOpen(true);
+  
+  // Function to save order to database
+  const saveOrderToDatabase = async (order: Order): Promise<boolean> => {
+    try {
+      // This would be replaced with an actual API call in a production environment
+      // For now, we'll simulate the API call and store in localStorage for demo purposes
+      
+      // Generate timestamp for order if not provided
+      if (!order.createdAt) {
+        order.createdAt = new Date().toISOString();
+      }
+      
+      // Retrieve existing orders or initialize empty array
+      const existingOrdersJson = localStorage.getItem('gordopods-orders');
+      const existingOrders = existingOrdersJson ? JSON.parse(existingOrdersJson) : [];
+      
+      // Add the new order
+      existingOrders.push(order);
+      
+      // Save back to localStorage
+      localStorage.setItem('gordopods-orders', JSON.stringify(existingOrders));
+      
+      console.log('Order saved successfully:', order);
+      
+      // Clear cart after successful order
+      clearCart();
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      toast.error('Falha ao registrar o pedido no sistema.');
+      return false;
+    }
+  };
 
   return (
     <CartContext.Provider
@@ -167,7 +204,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         isCartOpen,
         toggleCart,
         closeCart,
-        openCart
+        openCart,
+        saveOrderToDatabase
       }}
     >
       {children}
