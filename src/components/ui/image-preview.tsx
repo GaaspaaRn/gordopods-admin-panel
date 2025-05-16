@@ -8,13 +8,15 @@ interface ImagePreviewProps {
   isUploading: boolean;
   onRemove: () => void;
   imageClassName?: string;
+  uploadMode?: 'file' | 'url';
 }
 
 export function ImagePreview({
   previewUrl,
   isUploading,
   onRemove,
-  imageClassName = 'max-h-40 object-contain'
+  imageClassName = 'max-h-40 object-contain',
+  uploadMode = 'file'
 }: ImagePreviewProps) {
   if (isUploading) {
     return (
@@ -56,7 +58,9 @@ export function ImagePreview({
       <div className="text-center">
         <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
         <p className="mt-2 text-sm text-muted-foreground">
-          Selecione uma imagem para upload
+          {uploadMode === 'file' 
+            ? 'Selecione uma imagem para upload'
+            : 'Insira a URL da imagem'}
         </p>
       </div>
     </div>

@@ -26,6 +26,9 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
+  const [urlInput, setUrlInput] = useState('');
+  // Sempre começa com o modo 'file', independente de haver uma URL atual
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,6 +91,14 @@ export function ImageUploader({
     }
   };
 
+  const handleUrlSubmit = useCallback(() => {
+    if (!urlInput.trim()) return;
+    
+    setPreviewUrl(urlInput);
+    onImageUploaded(urlInput);
+    toast.success('URL da imagem definida com sucesso!');
+  }, [urlInput, onImageUploaded]);
+
   const handleRemoveImage = useCallback(() => {
     // Limpar preview local se houver
     if (previewUrl && !currentImageUrl) {
@@ -98,16 +109,35 @@ export function ImageUploader({
     onImageUploaded(''); // Limpar a imagem
   }, [previewUrl, currentImageUrl, onImageUploaded]);
 
+  const toggleUploadMode = useCallback(() => {
+    setUploadMode(prev => prev === 'file' ? 'url' : 'file');
+  }, []);
+
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex justify-between items-center">
         <Label>{label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={toggleUploadMode}
+          className="text-xs"
+        >
+          {uploadMode === 'file'
+            ? 'Usar URL externa'
+            : 'Fazer upload de arquivo'}
+        </Button>
       </div>
 
       <ImageUploadForm 
         isUploading={isUploading}
+        uploadMode={uploadMode}
         recommendedSize={recommendedSize}
         onFileChange={handleFileChange}
+        onUrlSubmit={handleUrlSubmit}
+        urlInput={urlInput}
+        onUrlChange={setUrlInput}
       />
 
       <ImagePreview 
@@ -115,6 +145,7 @@ export function ImageUploader({
         isUploading={isUploading}
         onRemove={handleRemoveImage}
         imageClassName={imageClassName}
+        uploadMode={uploadMode}
       />
     </div>
   );
