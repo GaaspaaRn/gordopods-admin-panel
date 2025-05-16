@@ -25,7 +25,8 @@ export function ImageUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const [urlInput, setUrlInput] = useState('');
-  const [uploadMode, setUploadMode] = useState<'file' | 'url'>(currentImageUrl ? 'url' : 'file');
+  // Sempre começa com o modo 'file', independente de haver uma URL atual
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
