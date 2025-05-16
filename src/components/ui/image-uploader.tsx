@@ -13,6 +13,7 @@ interface ImageUploaderProps {
   folder?: string;
   label?: string;
   imageClassName?: string;
+  recommendedSize?: string;
 }
 
 export function ImageUploader({
@@ -20,7 +21,8 @@ export function ImageUploader({
   currentImageUrl,
   folder = 'misc',
   label = 'Imagem',
-  imageClassName = 'max-h-40 object-contain'
+  imageClassName = 'max-h-40 object-contain',
+  recommendedSize
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
@@ -139,6 +141,9 @@ export function ImageUploader({
               className="flex-1"
             />
           </div>
+          {recommendedSize && (
+            <p className="text-xs text-muted-foreground">{recommendedSize}</p>
+          )}
         </div>
       ) : (
         <div className="flex items-center gap-2">

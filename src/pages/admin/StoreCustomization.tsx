@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -138,6 +139,7 @@ export default function StoreCustomization() {
                     folder="logos"
                     onImageUploaded={(url) => setLogo(url)}
                     imageClassName="max-h-16 object-contain"
+                    recommendedSize="Recomendado: 200x200 pixels, Quadrado, Máx 1MB. Formatos: JPG, PNG, WebP."
                   />
                 </div>
                 
@@ -148,6 +150,7 @@ export default function StoreCustomization() {
                     folder="banners"
                     onImageUploaded={(url) => setBanner(url)}
                     imageClassName="w-full h-32 object-cover rounded"
+                    recommendedSize="Recomendado: 1200x400 pixels (proporção 3:1), Máx 2MB. Formatos: JPG, PNG, WebP."
                   />
                 </div>
                 
