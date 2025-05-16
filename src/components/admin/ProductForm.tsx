@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Product, 
@@ -47,6 +46,7 @@ import {
   ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ImageUploader } from '@/components/ui/image-uploader';
 
 interface ProductFormProps {
   existingProduct?: Product | null;
@@ -469,20 +469,25 @@ export default function ProductForm({ existingProduct, onSave, onCancel }: Produ
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="image-url">URL da Imagem</Label>
-                    <Input
-                      id="image-url"
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      value={newImageUrl}
-                      onChange={(e) => setNewImageUrl(e.target.value)}
-                    />
-                  </div>
-                  <Button type="button" onClick={addImage}>
-                    <Plus size={16} className="mr-2" /> Adicionar
-                  </Button>
-                </div>
+                <ImageUploader 
+                  label="Adicionar Nova Imagem"
+                  folder="products"
+                  onImageUploaded={(url) => {
+                    if (url) {
+                      const isMain = images.length === 0;
+                      setImages(prev => [
+                        ...prev,
+                        {
+                          id: crypto.randomUUID(),
+                          url,
+                          isMain,
+                          order: prev.length,
+                        }
+                      ]);
+                      setErrors(prev => ({ ...prev, images: '' }));
+                    }
+                  }}
+                />
 
                 {errors.images && (
                   <p className="text-red-500 text-sm">{errors.images}</p>

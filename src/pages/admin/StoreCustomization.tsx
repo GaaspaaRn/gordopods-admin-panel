@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ import {
 import { SocialLink } from '@/types';
 import { useStoreSettings } from '@/contexts/StoreSettingsContext';
 import { Plus, Trash2, ExternalLink } from 'lucide-react';
+import { ImageUploader } from '@/components/ui/image-uploader';
 
 export default function StoreCustomization() {
   const { storeSettings, updateStoreSettings, addSocialLink, updateSocialLink, removeSocialLink } = useStoreSettings();
@@ -132,49 +132,23 @@ export default function StoreCustomization() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="logo">URL do Logotipo</Label>
-                  <Input
-                    id="logo"
-                    value={logo}
-                    onChange={(e) => setLogo(e.target.value)}
-                    placeholder="https://exemplo.com/imagem.png"
+                  <ImageUploader 
+                    label="Logotipo da Loja"
+                    currentImageUrl={logo}
+                    folder="logos"
+                    onImageUploaded={(url) => setLogo(url)}
+                    imageClassName="max-h-16 object-contain"
                   />
-                  {logo && (
-                    <div className="mt-2 p-2 border rounded">
-                      <p className="text-xs text-muted-foreground mb-2">Prévia:</p>
-                      <img 
-                        src={logo} 
-                        alt="Logo preview" 
-                        className="max-h-16 object-contain"
-                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                          e.currentTarget.src = "https://via.placeholder.com/150?text=Erro+na+imagem";
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="banner">URL da Imagem de Capa/Banner</Label>
-                  <Input
-                    id="banner"
-                    value={banner}
-                    onChange={(e) => setBanner(e.target.value)}
-                    placeholder="https://exemplo.com/banner.jpg"
+                  <ImageUploader 
+                    label="Imagem de Capa/Banner"
+                    currentImageUrl={banner}
+                    folder="banners"
+                    onImageUploaded={(url) => setBanner(url)}
+                    imageClassName="w-full h-32 object-cover rounded"
                   />
-                  {banner && (
-                    <div className="mt-2 p-2 border rounded">
-                      <p className="text-xs text-muted-foreground mb-2">Prévia:</p>
-                      <img 
-                        src={banner} 
-                        alt="Banner preview" 
-                        className="w-full h-32 object-cover rounded"
-                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                          e.currentTarget.src = "https://via.placeholder.com/800x200?text=Erro+na+imagem";
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
                 
                 <div className="space-y-2">
