@@ -1,11 +1,11 @@
 
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Upload, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ImagePreview } from './image-preview';
+import { ImageUploadForm } from './image-upload-form';
 
 interface ImageUploaderProps {
   onImageUploaded: (url: string) => void;
@@ -130,80 +130,23 @@ export function ImageUploader({
         </Button>
       </div>
 
-      {uploadMode === 'file' ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Input 
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={isUploading}
-              className="flex-1"
-            />
-          </div>
-          {recommendedSize && (
-            <p className="text-xs text-muted-foreground">{recommendedSize}</p>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          <Input
-            type="url"
-            placeholder="https://exemplo.com/imagem.png"
-            value={urlInput}
-            onChange={e => setUrlInput(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleUrlSubmit}
-          >
-            <Upload className="h-4 w-4 mr-2" /> Definir
-          </Button>
-        </div>
-      )}
+      <ImageUploadForm 
+        isUploading={isUploading}
+        uploadMode={uploadMode}
+        recommendedSize={recommendedSize}
+        onFileChange={handleFileChange}
+        onUrlSubmit={handleUrlSubmit}
+        urlInput={urlInput}
+        onUrlChange={setUrlInput}
+      />
 
-      {/* Área de preview */}
-      {isUploading ? (
-        <div className="flex justify-center items-center h-40 border rounded bg-muted/20">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">Enviando imagem...</p>
-          </div>
-        </div>
-      ) : previewUrl ? (
-        <div className="relative border rounded overflow-hidden">
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className={`w-full ${imageClassName}`}
-            onError={(e) => {
-              e.currentTarget.src = "https://via.placeholder.com/300x200?text=Erro+na+imagem";
-            }}
-          />
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon"
-            className="absolute top-2 right-2 h-8 w-8"
-            onClick={handleRemoveImage}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-center items-center h-40 border rounded border-dashed bg-muted/20">
-          <div className="text-center">
-            <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {uploadMode === 'file' 
-                ? 'Selecione uma imagem para upload'
-                : 'Insira a URL da imagem'}
-            </p>
-          </div>
-        </div>
-      )}
+      <ImagePreview 
+        previewUrl={previewUrl}
+        isUploading={isUploading}
+        onRemove={handleRemoveImage}
+        imageClassName={imageClassName}
+        uploadMode={uploadMode}
+      />
     </div>
   );
 }
