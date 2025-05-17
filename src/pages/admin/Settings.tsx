@@ -1,429 +1,363 @@
 
-import { useState } from 'react';
-import AdminLayout from '@/components/admin/AdminLayout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import React, { useState } from 'react';
 import { useStoreSettings } from '@/contexts/StoreSettingsContext';
-import { Trash2, Plus } from 'lucide-react';
-import { Neighborhood } from '@/types';
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { toast } from 'sonner';
 
-export default function Settings() {
-  const { 
-    storeConfig, 
-    deliverySettings, 
-    updateStoreConfig, 
-    updateDeliverySettings,
-    addNeighborhood,
-    updateNeighborhood,
-    removeNeighborhood
-  } = useStoreSettings();
+export function Settings() {
+  const { storeSettings, deliverySettings, updateStoreSettings, updateDeliverySettings } = useStoreSettings();
   
-  // WhatsApp settings
-  const [whatsappNumber, setWhatsappNumber] = useState(storeConfig.whatsappNumber);
+  // Estado local para as configurações
+  const [whatsappNumber, setWhatsappNumber] = useState(storeSettings.whatsappNumber || '');
   
-  // Delivery settings
-  const [pickupEnabled, setPickupEnabled] = useState(deliverySettings.pickup.enabled);
-  const [pickupInstructions, setPickupInstructions] = useState(deliverySettings.pickup.instructions);
+  // Configurações de entrega
+  const [pickup, setPickup] = useState({
+    enabled: deliverySettings?.pickup?.enabled || false,
+    instructions: deliverySettings?.pickup?.instructions || '',
+  });
   
-  const [fixedRateEnabled, setFixedRateEnabled] = useState(deliverySettings.fixedRate.enabled);
-  const [fixedRateFee, setFixedRateFee] = useState(deliverySettings.fixedRate.fee.toString());
-  const [fixedRateDescription, setFixedRateDescription] = useState(deliverySettings.fixedRate.description);
+  const [fixedRate, setFixedRate] = useState({
+    enabled: deliverySettings?.fixedRate?.enabled || false,
+    fee: deliverySettings?.fixedRate?.fee || 0,
+    description: deliverySettings?.fixedRate?.description || 'Taxa de entrega fixa',
+  });
   
-  const [neighborhoodRatesEnabled, setNeighborhoodRatesEnabled] = useState(deliverySettings.neighborhoodRates.enabled);
+  const [neighborhood, setNeighborhood] = useState({
+    enabled: deliverySettings?.neighborhoodRates?.enabled || false,
+    neighborhoods: deliverySettings?.neighborhoodRates?.neighborhoods || [],
+  });
   
-  // New neighborhood state
-  const [newNeighborhoodName, setNewNeighborhoodName] = useState('');
-  const [newNeighborhoodFee, setNewNeighborhoodFee] = useState('');
+  // Estado para o novo bairro
+  const [newNeighborhood, setNewNeighborhood] = useState({
+    name: '',
+    fee: 0,
+  });
   
-  // Neighborhood editing state
-  const [editingNeighborhood, setEditingNeighborhood] = useState<Neighborhood | null>(null);
-  const [editNeighborhoodName, setEditNeighborhoodName] = useState('');
-  const [editNeighborhoodFee, setEditNeighborhoodFee] = useState('');
+  // Formatação de valores monetários
+  const formatMoney = (value: number) => {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   
-  const handleSaveWhatsApp = () => {
-    updateStoreConfig({ whatsappNumber });
+  // Conversão de string para número (para campos de valor)
+  const parseMoney = (value: string) => {
+    // Remover caracteres não numéricos, exceto ponto decimal
+    const numericValue = value.replace(/[^\d.]/g, '');
+    return parseFloat(numericValue) || 0;
+  };
+  
+  const handleSaveWhatsapp = () => {
+    updateStoreSettings({ whatsappNumber });
+    toast.success('Número de WhatsApp salvo com sucesso!');
   };
   
   const handleSavePickup = () => {
-    updateDeliverySettings({
+    const newDeliverySettings = {
+      ...deliverySettings,
       pickup: {
-        enabled: pickupEnabled,
-        instructions: pickupInstructions,
+        ...pickup
       }
-    });
+    };
+    updateDeliverySettings(newDeliverySettings);
+    toast.success('Configurações de retirada salvas com sucesso!');
   };
   
   const handleSaveFixedRate = () => {
-    updateDeliverySettings({
+    const newDeliverySettings = {
+      ...deliverySettings,
       fixedRate: {
-        enabled: fixedRateEnabled,
-        fee: parseFloat(fixedRateFee) || 0,
-        description: fixedRateDescription,
+        ...fixedRate
       }
-    });
-  };
-  
-  const handleSaveNeighborhoodSettings = () => {
-    updateDeliverySettings({
-      neighborhoodRates: {
-        ...deliverySettings.neighborhoodRates,
-        enabled: neighborhoodRatesEnabled,
-      }
-    });
+    };
+    updateDeliverySettings(newDeliverySettings);
+    toast.success('Configurações de taxa fixa salvas com sucesso!');
   };
   
   const handleAddNeighborhood = () => {
-    if (newNeighborhoodName && newNeighborhoodFee) {
-      const fee = parseFloat(newNeighborhoodFee) || 0;
-      addNeighborhood(newNeighborhoodName, fee);
-      setNewNeighborhoodName('');
-      setNewNeighborhoodFee('');
+    if (!newNeighborhood.name) {
+      toast.error('Digite o nome do bairro');
+      return;
     }
+    
+    const newNeighborhoods = [
+      ...neighborhood.neighborhoods,
+      {
+        id: crypto.randomUUID(),
+        name: newNeighborhood.name,
+        fee: newNeighborhood.fee
+      }
+    ];
+    
+    setNeighborhood({
+      ...neighborhood,
+      neighborhoods: newNeighborhoods
+    });
+    
+    setNewNeighborhood({
+      name: '',
+      fee: 0
+    });
+    
+    // Salvar imediatamente
+    const newDeliverySettings = {
+      ...deliverySettings,
+      neighborhoodRates: {
+        ...neighborhood,
+        neighborhoods: newNeighborhoods
+      }
+    };
+    updateDeliverySettings(newDeliverySettings);
+    toast.success('Bairro adicionado com sucesso!');
   };
   
-  const startEditNeighborhood = (neighborhood: Neighborhood) => {
-    setEditingNeighborhood(neighborhood);
-    setEditNeighborhoodName(neighborhood.name);
-    setEditNeighborhoodFee(neighborhood.fee.toString());
+  const handleRemoveNeighborhood = (id: string) => {
+    const newNeighborhoods = neighborhood.neighborhoods.filter(n => n.id !== id);
+    
+    const newNeighborhoodState = {
+      ...neighborhood,
+      neighborhoods: newNeighborhoods
+    };
+    
+    setNeighborhood(newNeighborhoodState);
+    
+    // Salvar imediatamente
+    const newDeliverySettings = {
+      ...deliverySettings,
+      neighborhoodRates: newNeighborhoodState
+    };
+    updateDeliverySettings(newDeliverySettings);
+    toast.success('Bairro removido com sucesso!');
   };
   
-  const handleSaveEditNeighborhood = () => {
-    if (editingNeighborhood && editNeighborhoodName && editNeighborhoodFee) {
-      const fee = parseFloat(editNeighborhoodFee) || 0;
-      updateNeighborhood(editingNeighborhood.id, editNeighborhoodName, fee);
-      setEditingNeighborhood(null);
-    }
-  };
-  
-  const handleCancelEditNeighborhood = () => {
-    setEditingNeighborhood(null);
+  const handleSaveNeighborhoods = () => {
+    const newDeliverySettings = {
+      ...deliverySettings,
+      neighborhoodRates: neighborhood
+    };
+    updateDeliverySettings(newDeliverySettings);
+    toast.success('Configurações de bairros salvas com sucesso!');
   };
   
   return (
-    <AdminLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Configurações da Loja</h1>
-          <p className="text-muted-foreground">
-            Configure preferências gerais e opções de entrega da sua loja
-          </p>
-        </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <h1 className="text-2xl font-bold">Configurações</h1>
+      
+      <Tabs defaultValue="whatsapp">
+        <TabsList className="grid grid-cols-3 mb-4">
+          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+          <TabsTrigger value="delivery">Entrega</TabsTrigger>
+          <TabsTrigger value="others">Outras Configurações</TabsTrigger>
+        </TabsList>
         
-        <Tabs defaultValue="whatsapp" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-            <TabsTrigger value="pickup">Retirada</TabsTrigger>
-            <TabsTrigger value="fixedRate">Taxa Fixa</TabsTrigger>
-            <TabsTrigger value="neighborhoods">Bairros</TabsTrigger>
-          </TabsList>
-          
-          {/* WhatsApp Settings */}
-          <TabsContent value="whatsapp">
+        <TabsContent value="whatsapp">
+          <Card>
+            <CardHeader>
+              <CardTitle>WhatsApp da Loja</CardTitle>
+              <CardDescription>
+                Configure o número de WhatsApp que receberá os pedidos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="whatsappNumber">Número do WhatsApp (com código do país)</Label>
+                <Input 
+                  id="whatsappNumber" 
+                  placeholder="Ex: 5547999999999" 
+                  value={whatsappNumber} 
+                  onChange={(e) => setWhatsappNumber(e.target.value)} 
+                />
+                <p className="text-sm text-muted-foreground">
+                  Digite o número com código do país (Ex: 5547999999999, sem espaços ou caracteres especiais)
+                </p>
+              </div>
+              <Button onClick={handleSaveWhatsapp}>Salvar</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="delivery">
+          <div className="space-y-6">
+            {/* Retirada no Local */}
             <Card>
-              <CardHeader>
-                <CardTitle>Configurações de WhatsApp</CardTitle>
-                <CardDescription>
-                  Configure o número de WhatsApp que receberá os pedidos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="whatsappNumber">Número de WhatsApp (formato internacional)</Label>
-                  <Input
-                    id="whatsappNumber"
-                    value={whatsappNumber}
-                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                    placeholder="5547999999999"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Insira seu número no formato internacional sem espaços ou caracteres especiais. 
-                    Ex: 5547999999999 (55 = Brasil, 47 = DDD, seguido do número)
-                  </p>
-                </div>
-                
-                <div className="mt-4 p-4 bg-muted rounded-md">
-                  <h3 className="font-medium mb-2">Como funciona:</h3>
-                  <p className="text-sm">
-                    Quando um cliente finaliza o pedido na loja, ele será direcionado para o WhatsApp 
-                    com uma mensagem automática contendo todos os detalhes do pedido. 
-                    Você pode então confirmar o pedido e fornecer instruções adicionais ao cliente.
-                  </p>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={handleSaveWhatsApp}>
-                  Salvar Configurações
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          {/* Pickup Settings */}
-          <TabsContent value="pickup">
-            <Card>
-              <CardHeader>
-                <CardTitle>Retirada no Local</CardTitle>
-                <CardDescription>
-                  Configure as opções para clientes retirarem os produtos no local
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="pickup-enabled"
-                    checked={pickupEnabled}
-                    onCheckedChange={setPickupEnabled}
-                  />
-                  <Label htmlFor="pickup-enabled">Habilitar retirada no local</Label>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="pickup-instructions">Instruções para Retirada</Label>
-                  <Textarea
-                    id="pickup-instructions"
-                    value={pickupInstructions}
-                    onChange={(e) => setPickupInstructions(e.target.value)}
-                    placeholder="Exemplo: Retire em nossa loja entre 10h e 20h"
-                    disabled={!pickupEnabled}
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={handleSavePickup}>
-                  Salvar Configurações
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          {/* Fixed Rate Settings */}
-          <TabsContent value="fixedRate">
-            <Card>
-              <CardHeader>
-                <CardTitle>Entrega com Taxa Fixa</CardTitle>
-                <CardDescription>
-                  Configure a entrega com valor fixo para toda a região
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="fixed-rate-enabled"
-                    checked={fixedRateEnabled}
-                    onCheckedChange={setFixedRateEnabled}
-                  />
-                  <Label htmlFor="fixed-rate-enabled">Habilitar entrega com taxa fixa</Label>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="fixed-rate-fee">Valor da Taxa (R$)</Label>
-                  <Input
-                    id="fixed-rate-fee"
-                    type="number"
-                    value={fixedRateFee}
-                    onChange={(e) => setFixedRateFee(e.target.value)}
-                    placeholder="0.00"
-                    disabled={!fixedRateEnabled}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="fixed-rate-description">Descrição</Label>
-                  <Input
-                    id="fixed-rate-description"
-                    value={fixedRateDescription}
-                    onChange={(e) => setFixedRateDescription(e.target.value)}
-                    placeholder="Exemplo: Taxa fixa para toda a cidade"
-                    disabled={!fixedRateEnabled}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={handleSaveFixedRate}>
-                  Salvar Configurações
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          {/* Neighborhood Settings */}
-          <TabsContent value="neighborhoods">
-            <Card>
-              <CardHeader>
+              <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Entrega por Bairros/Regiões</CardTitle>
-                    <CardDescription>
-                      Configure taxas de entrega diferentes para cada bairro
-                    </CardDescription>
-                  </div>
+                  <CardTitle>Retirada no Local</CardTitle>
+                  <Switch 
+                    checked={pickup.enabled} 
+                    onCheckedChange={(checked) => {
+                      setPickup({ ...pickup, enabled: checked });
+                    }} 
+                  />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="neighborhood-rates-enabled"
-                    checked={neighborhoodRatesEnabled}
-                    onCheckedChange={setNeighborhoodRatesEnabled}
+              <CardContent className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pickupInstructions">Instruções para Retirada</Label>
+                  <Input 
+                    id="pickupInstructions" 
+                    placeholder="Ex: Retirar na loja das 9h às 18h" 
+                    value={pickup.instructions} 
+                    onChange={(e) => setPickup({ ...pickup, instructions: e.target.value })} 
+                    disabled={!pickup.enabled}
                   />
-                  <Label htmlFor="neighborhood-rates-enabled">
-                    Habilitar entregas com taxas por bairro
-                  </Label>
                 </div>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={handleSaveNeighborhoodSettings}
-                  className="mt-2"
-                >
-                  Salvar Configuração
-                </Button>
-                
-                {neighborhoodRatesEnabled && (
-                  <div className="mt-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="newNeighborhoodName">Nome do Bairro/Região</Label>
-                        <Input
-                          id="newNeighborhoodName"
-                          value={newNeighborhoodName}
-                          onChange={(e) => setNewNeighborhoodName(e.target.value)}
-                          placeholder="Centro, Zona Sul, etc."
+                <Button onClick={handleSavePickup} disabled={!pickup.enabled}>Salvar</Button>
+              </CardContent>
+            </Card>
+            
+            {/* Taxa Fixa */}
+            <Card>
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Entrega com Taxa Fixa</CardTitle>
+                  <Switch 
+                    checked={fixedRate.enabled} 
+                    onCheckedChange={(checked) => {
+                      setFixedRate({ ...fixedRate, enabled: checked });
+                    }} 
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fixedRateDescription">Descrição</Label>
+                  <Input 
+                    id="fixedRateDescription" 
+                    placeholder="Ex: Taxa de entrega padrão" 
+                    value={fixedRate.description} 
+                    onChange={(e) => setFixedRate({ ...fixedRate, description: e.target.value })} 
+                    disabled={!fixedRate.enabled}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fixedRateValue">Valor da Taxa (R$)</Label>
+                  <Input 
+                    id="fixedRateValue" 
+                    placeholder="Ex: 5.00" 
+                    value={formatMoney(fixedRate.fee)} 
+                    onChange={(e) => setFixedRate({ 
+                      ...fixedRate, 
+                      fee: parseMoney(e.target.value)
+                    })} 
+                    disabled={!fixedRate.enabled}
+                  />
+                </div>
+                <Button onClick={handleSaveFixedRate} disabled={!fixedRate.enabled}>Salvar</Button>
+              </CardContent>
+            </Card>
+            
+            {/* Entrega por Bairros */}
+            <Card>
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Entrega por Bairros</CardTitle>
+                  <Switch 
+                    checked={neighborhood.enabled} 
+                    onCheckedChange={(checked) => {
+                      setNeighborhood({ ...neighborhood, enabled: checked });
+                      handleSaveNeighborhoods();
+                    }} 
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                <div className="space-y-4">
+                  <div className="border p-4 rounded-md space-y-4">
+                    <h3 className="font-medium">Adicionar Novo Bairro</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="neighborhoodName">Nome do Bairro</Label>
+                        <Input 
+                          id="neighborhoodName" 
+                          placeholder="Ex: Centro" 
+                          value={newNeighborhood.name} 
+                          onChange={(e) => setNewNeighborhood({ 
+                            ...newNeighborhood, 
+                            name: e.target.value 
+                          })} 
+                          disabled={!neighborhood.enabled}
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="newNeighborhoodFee">Taxa de Entrega (R$)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="newNeighborhoodFee"
-                            type="number"
-                            value={newNeighborhoodFee}
-                            onChange={(e) => setNewNeighborhoodFee(e.target.value)}
-                            placeholder="0.00"
-                            min="0"
-                            step="0.01"
-                            className="flex-1"
-                          />
-                          <Button 
-                            onClick={handleAddNeighborhood}
-                            disabled={!newNeighborhoodName || !newNeighborhoodFee}
-                          >
-                            <Plus size={16} />
-                          </Button>
-                        </div>
+                      <div>
+                        <Label htmlFor="neighborhoodFee">Taxa (R$)</Label>
+                        <Input 
+                          id="neighborhoodFee" 
+                          placeholder="Ex: 7.50" 
+                          value={formatMoney(newNeighborhood.fee)} 
+                          onChange={(e) => setNewNeighborhood({ 
+                            ...newNeighborhood, 
+                            fee: parseMoney(e.target.value) 
+                          })} 
+                          disabled={!neighborhood.enabled}
+                        />
                       </div>
                     </div>
-                    
-                    <div className="mt-8">
-                      <h3 className="font-medium mb-4">Bairros cadastrados:</h3>
-                      
-                      {deliverySettings.neighborhoodRates.neighborhoods.length === 0 ? (
-                        <div className="text-center py-6 border rounded-md border-dashed">
-                          <p className="text-muted-foreground">
-                            Nenhum bairro cadastrado
-                          </p>
+                    <Button 
+                      onClick={handleAddNeighborhood} 
+                      disabled={!neighborhood.enabled || !newNeighborhood.name}
+                    >
+                      Adicionar Bairro
+                    </Button>
+                  </div>
+                  
+                  {/* Lista de Bairros */}
+                  <div className="border rounded-md">
+                    <h3 className="font-medium p-4 border-b">Bairros Cadastrados</h3>
+                    <div className="divide-y">
+                      {neighborhood.neighborhoods.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">
+                          Nenhum bairro cadastrado
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          {deliverySettings.neighborhoodRates.neighborhoods.map((neighborhood) => (
-                            <div 
-                              key={neighborhood.id}
-                              className="flex items-center justify-between border rounded-md p-3"
-                            >
-                              {editingNeighborhood?.id === neighborhood.id ? (
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                  <Input
-                                    value={editNeighborhoodName}
-                                    onChange={(e) => setEditNeighborhoodName(e.target.value)}
-                                    className="flex-1"
-                                    placeholder="Nome do bairro"
-                                  />
-                                  <Input
-                                    type="number"
-                                    value={editNeighborhoodFee}
-                                    onChange={(e) => setEditNeighborhoodFee(e.target.value)}
-                                    className="flex-1"
-                                    placeholder="0.00"
-                                    min="0"
-                                    step="0.01"
-                                  />
-                                  <div className="flex gap-2 md:col-span-2">
-                                    <Button 
-                                      size="sm"
-                                      onClick={handleSaveEditNeighborhood}
-                                      className="flex-1"
-                                    >
-                                      Salvar
-                                    </Button>
-                                    <Button 
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={handleCancelEditNeighborhood}
-                                      className="flex-1"
-                                    >
-                                      Cancelar
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <div>
-                                    <div className="font-medium">{neighborhood.name}</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      Taxa: R$ {neighborhood.fee.toFixed(2)}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => startEditNeighborhood(neighborhood)}
-                                    >
-                                      Editar
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => removeNeighborhood(neighborhood.id)}
-                                    >
-                                      <Trash2 size={16} className="text-red-500" />
-                                    </Button>
-                                  </div>
-                                </>
-                              )}
+                        neighborhood.neighborhoods.map(item => (
+                          <div key={item.id} className="p-4 flex justify-between items-center">
+                            <div>
+                              <span className="font-medium">{item.name}</span>
+                              <span className="ml-2 text-muted-foreground">
+                                (R$ {formatMoney(item.fee)})
+                              </span>
                             </div>
-                          ))}
-                        </div>
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              onClick={() => handleRemoveNeighborhood(item.id)}
+                              disabled={!neighborhood.enabled}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        ))
                       )}
                     </div>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </AdminLayout>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="others">
+          <Card>
+            <CardHeader>
+              <CardTitle>Outras Configurações</CardTitle>
+              <CardDescription>
+                Configurações adicionais da loja
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Configurações adicionais serão implementadas em breve.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
+
+export default Settings;

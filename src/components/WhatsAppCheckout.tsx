@@ -210,8 +210,10 @@ export function WhatsAppCheckout({ onSubmit }: CheckoutFormProps) {
                 onChange={(e) => setCustomerInfo({
                   ...customerInfo, 
                   address: { 
-                    ...customerInfo.address || {}, 
-                    street: e.target.value 
+                    ...(customerInfo.address || {}), 
+                    street: e.target.value,
+                    number: customerInfo.address?.number || '',
+                    district: customerInfo.address?.district || ''
                   }
                 })}
                 required
@@ -228,8 +230,10 @@ export function WhatsAppCheckout({ onSubmit }: CheckoutFormProps) {
                   onChange={(e) => setCustomerInfo({
                     ...customerInfo, 
                     address: { 
-                      ...customerInfo.address || {}, 
-                      number: e.target.value 
+                      ...(customerInfo.address || {}), 
+                      number: e.target.value,
+                      street: customerInfo.address?.street || '',
+                      district: customerInfo.address?.district || ''
                     }
                   })}
                   required
@@ -245,8 +249,11 @@ export function WhatsAppCheckout({ onSubmit }: CheckoutFormProps) {
                   onChange={(e) => setCustomerInfo({
                     ...customerInfo, 
                     address: { 
-                      ...customerInfo.address || {}, 
-                      complement: e.target.value 
+                      ...(customerInfo.address || {}), 
+                      complement: e.target.value,
+                      street: customerInfo.address?.street || '',
+                      number: customerInfo.address?.number || '',
+                      district: customerInfo.address?.district || ''
                     }
                   })}
                 />
@@ -262,8 +269,10 @@ export function WhatsAppCheckout({ onSubmit }: CheckoutFormProps) {
                 onChange={(e) => setCustomerInfo({
                   ...customerInfo, 
                   address: { 
-                    ...customerInfo.address || {}, 
-                    district: e.target.value 
+                    ...(customerInfo.address || {}), 
+                    district: e.target.value,
+                    street: customerInfo.address?.street || '',
+                    number: customerInfo.address?.number || ''
                   }
                 })}
                 required

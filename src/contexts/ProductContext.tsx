@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Product, ProductImage, ProductVariationGroup, ProductVariationOption } from '../types';
 import { toast } from 'sonner';
@@ -225,7 +226,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             active: product.active,
             createdAt: product.created_at,
             updatedAt: product.updated_at
-          };
+          } as Product;
         }));
 
         setProducts(productsWithImages);
