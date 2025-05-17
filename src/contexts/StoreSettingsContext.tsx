@@ -1,4 +1,3 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { StoreSettings, DeliverySettings, StoreConfig } from '../types';
 import { toast } from 'sonner';
@@ -26,6 +25,7 @@ const initialStoreSettings: StoreSettings = {
   primaryColor: '#9b87f5',
   secondaryColor: '#6E59A5',
   description: 'Os melhores pods da região!',
+  whatsappNumber: '5547999999999',  // Adicionando o valor inicial do whatsappNumber
   socialLinks: [
     { id: '1', name: 'Instagram', url: 'https://instagram.com/gordopods' },
   ],

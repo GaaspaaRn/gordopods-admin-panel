@@ -21,11 +21,13 @@ interface ContactInfoTabProps {
 export function ContactInfoTab({ storeSettings, onSave }: ContactInfoTabProps) {
   const [contactPhone, setContactPhone] = useState(storeSettings.contactInfo.phone || '');
   const [contactEmail, setContactEmail] = useState(storeSettings.contactInfo.email || '');
+  const [whatsappNumber, setWhatsappNumber] = useState(storeSettings.whatsappNumber || '');
   
   // Update local state when storeSettings change (e.g., after saving)
   useEffect(() => {
     setContactPhone(storeSettings.contactInfo.phone || '');
     setContactEmail(storeSettings.contactInfo.email || '');
+    setWhatsappNumber(storeSettings.whatsappNumber || '');
   }, [storeSettings]);
 
   const handleSaveContact = () => {
@@ -34,6 +36,7 @@ export function ContactInfoTab({ storeSettings, onSave }: ContactInfoTabProps) {
         phone: contactPhone,
         email: contactEmail,
       },
+      whatsappNumber: whatsappNumber,
     });
   };
 
@@ -69,6 +72,19 @@ export function ContactInfoTab({ storeSettings, onSave }: ContactInfoTabProps) {
               onChange={(e) => setContactEmail(e.target.value)}
               placeholder="contato@gordopods.com"
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="whatsappNumber">WhatsApp para Pedidos</Label>
+            <Input
+              id="whatsappNumber"
+              value={whatsappNumber}
+              onChange={(e) => setWhatsappNumber(e.target.value)}
+              placeholder="5547999999999"
+            />
+            <p className="text-xs text-muted-foreground">
+              Número internacional (com código do país) para receber pedidos no WhatsApp. Ex: 5547999999999
+            </p>
           </div>
         </div>
       </CardContent>
