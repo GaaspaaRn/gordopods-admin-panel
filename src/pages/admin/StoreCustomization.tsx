@@ -19,7 +19,7 @@ export default function StoreCustomization() {
     updateStoreSettings, 
     addSocialLink, 
     updateSocialLink, 
-    removeSocialLink 
+    deleteSocialLink 
   } = useStoreSettings();
 
   return (
@@ -60,9 +60,9 @@ export default function StoreCustomization() {
           <TabsContent value="social">
             <SocialLinksTab 
               storeSettings={storeSettings}
-              onAdd={addSocialLink}
-              onUpdate={updateSocialLink}
-              onRemove={removeSocialLink}
+              onAdd={(name, url) => addSocialLink({ name, url })}
+              onUpdate={(id, name, url) => updateSocialLink(id, { name, url })}
+              onRemove={deleteSocialLink}
             />
           </TabsContent>
           

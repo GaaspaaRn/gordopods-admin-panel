@@ -14,11 +14,38 @@ interface CategoryContextType {
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
-// Initial mock categories
+// Initial mock categories with propriedades obrigatórias completas
 const initialCategories: Category[] = [
-  { id: '1', name: 'Pods de Fruta', order: 0 },
-  { id: '2', name: 'Pods de Sobremesa', order: 1 },
-  { id: '3', name: 'Pods Especiais', order: 2 },
+  { 
+    id: '1', 
+    name: 'Pods de Fruta', 
+    description: '',
+    imageUrl: '',
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    order: 0 
+  },
+  { 
+    id: '2', 
+    name: 'Pods de Sobremesa', 
+    description: '',
+    imageUrl: '',
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    order: 1 
+  },
+  { 
+    id: '3', 
+    name: 'Pods Especiais',
+    description: '',
+    imageUrl: '',
+    active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(), 
+    order: 2 
+  },
 ];
 
 export function CategoryProvider({ children }: { children: ReactNode }) {
@@ -49,9 +76,15 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   }, [categories, isLoading]);
 
   const createCategory = (name: string) => {
+    const now = new Date().toISOString();
     const newCategory: Category = {
       id: crypto.randomUUID(),
       name,
+      description: '',
+      imageUrl: '',
+      active: true,
+      createdAt: now,
+      updatedAt: now,
       order: categories.length,
     };
     
@@ -62,7 +95,11 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   const updateCategory = (id: string, name: string) => {
     setCategories(
       categories.map(category => 
-        category.id === id ? { ...category, name } : category
+        category.id === id ? { 
+          ...category, 
+          name,
+          updatedAt: new Date().toISOString()
+        } : category
       )
     );
     toast.success('Categoria atualizada com sucesso!');
@@ -75,6 +112,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
       .map((category, index) => ({
         ...category,
         order: index,
+        updatedAt: new Date().toISOString()
       }));
     
     setCategories(updatedCategories);
@@ -86,6 +124,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
     const updatedCategories = newOrder.map((category, index) => ({
       ...category,
       order: index,
+      updatedAt: new Date().toISOString()
     }));
     
     setCategories(updatedCategories);
