@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ShoppingCart as CartIcon, Plus, Minus, Trash2, ArrowRight, Send, Check } from "lucide-react";
+import { ShoppingCart as CartIcon, Plus, Minus, Trash2, ArrowRight, Send } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useStoreSettings } from "@/contexts/StoreSettingsContext";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Neighborhood, Order } from "@/types";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/format";
 
 // Define checkout steps
 enum CheckoutStep {
@@ -66,6 +67,13 @@ const ShoppingCart = () => {
   // Selected delivery option and cost
   const [deliveryCost, setDeliveryCost] = useState(0);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<Neighborhood | null>(null);
+
+  // Initialize form with react-hook-form and default delivery option
+  // Garante que temos valores padrão seguros mesmo que deliverySettings esteja undefined temporariamente
+  const defaultDeliveryOption = 
+    deliverySettings?.pickup?.enabled ? "pickup" : 
+    deliverySettings?.fixedRate?.enabled ? "fixedRate" : 
+    deliverySettings?.neighborhoodRates?.enabled ? "neighborhood" : "pickup";
   
   // Initialize form with react-hook-form
   const form = useForm<CustomerFormValues>({
@@ -73,9 +81,7 @@ const ShoppingCart = () => {
     defaultValues: {
       name: "",
       phone: "",
-      deliveryOption: deliverySettings.pickup.enabled ? "pickup" : 
-                     deliverySettings.fixedRate.enabled ? "fixedRate" : 
-                     deliverySettings.neighborhoodRates.enabled ? "neighborhood" : "",
+      deliveryOption: defaultDeliveryOption,
       neighborhood: "",
       street: "",
       number: "",
@@ -113,7 +119,7 @@ const ShoppingCart = () => {
     setDeliveryCost(0);
     
     // Update delivery cost based on option
-    if (value === "fixedRate" && deliverySettings.fixedRate.enabled) {
+    if (value === "fixedRate" && deliverySettings?.fixedRate?.enabled) {
       setDeliveryCost(deliverySettings.fixedRate.fee);
     } else if (value === "neighborhood" && selectedNeighborhood) {
       setDeliveryCost(selectedNeighborhood.fee);
@@ -128,6 +134,8 @@ const ShoppingCart = () => {
   
   // Handle neighborhood selection
   const handleNeighborhoodChange = (id: string) => {
+    if (!deliverySettings?.neighborhoodRates?.neighborhoods) return;
+    
     const neighborhood = deliverySettings.neighborhoodRates.neighborhoods.find(n => n.id === id);
     if (neighborhood) {
       setSelectedNeighborhood(neighborhood);
@@ -201,19 +209,13 @@ const ShoppingCart = () => {
       if (data.deliveryOption === "pickup") {
         deliveryMethod = "Retirada no Local";
         deliveryOptionType = "pickup";
-      } else if (data.deliveryOption === "fixedRate") {
-        deliveryMethod = `Entrega com Taxa Fixa: ${deliverySettings.fixedRate.fee.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        })}`;
+      } else if (data.deliveryOption === "fixedRate" && deliverySettings?.fixedRate) {
+        deliveryMethod = `Entrega com Taxa Fixa: ${formatCurrency(deliverySettings.fixedRate.fee)}`;
         deliveryOptionType = "fixedRate";
       } else if (data.deliveryOption === "neighborhood") {
         deliveryOptionType = "neighborhood";
         if (selectedNeighborhood) {
-          deliveryMethod = `Entrega para ${selectedNeighborhood.name}: ${selectedNeighborhood.fee.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          })}`;
+          deliveryMethod = `Entrega para ${selectedNeighborhood.name}: ${formatCurrency(selectedNeighborhood.fee)}`;
           neighborhoodIdName = { 
             id: selectedNeighborhood.id, 
             name: selectedNeighborhood.name 
@@ -234,13 +236,7 @@ const ShoppingCart = () => {
         }
         
         // Add price
-        orderItems += ` - ${(item.totalPrice / item.quantity).toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        })} cada = ${item.totalPrice.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        })}`;
+        orderItems += ` - ${formatCurrency(item.totalPrice / item.quantity)} cada = ${formatCurrency(item.totalPrice)}`;
       });
       
       // Calculate total
@@ -277,7 +273,7 @@ const ShoppingCart = () => {
       };
       
       // Format WhatsApp message
-      let message = `*Pedido Loja ${storeSettings.storeName || 'Gordopods'}!*
+      let message = `*Pedido Loja ${storeSettings?.storeName || 'Gordopods'}!*
 *Número do Pedido:* #${orderNumber}
 
 *Cliente:* ${data.name}
@@ -290,18 +286,9 @@ const ShoppingCart = () => {
 
       message += `\n\n*Itens do Pedido:*${orderItems}
 
-*Subtotal:* ${cart.subtotal.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}
-*${data.deliveryOption === "pickup" ? "Retirada no Local" : "Taxa de Entrega"}:* ${data.deliveryOption === "pickup" ? "R$ 0,00" : deliveryCost.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}
-*Total Geral:* ${total.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      })}`;
+*Subtotal:* ${formatCurrency(cart.subtotal)}
+*${data.deliveryOption === "pickup" ? "Retirada no Local" : "Taxa de Entrega"}:* ${data.deliveryOption === "pickup" ? "R$ 0,00" : formatCurrency(deliveryCost)}
+*Total Geral:* ${formatCurrency(total)}`;
 
       // Add notes if any
       if (data.notes) {
@@ -310,7 +297,7 @@ const ShoppingCart = () => {
       
       // Get WhatsApp number from store config
       // Remove all non-digits
-      const whatsappNumber = storeConfig.whatsappNumber.replace(/\D/g, '');
+      const whatsappNumber = storeConfig?.whatsappNumber?.replace(/\D/g, '') || '';
       
       // Ensure the WhatsApp number is valid
       if (!whatsappNumber || whatsappNumber.length < 10) {
@@ -420,10 +407,7 @@ const ShoppingCart = () => {
                           {variation.priceModifier !== 0 && (
                             <span className="text-xs ml-1">
                               ({variation.priceModifier > 0 ? "+" : ""}
-                              {variation.priceModifier.toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              })})
+                              {formatCurrency(variation.priceModifier)})
                             </span>
                           )}
                         </div>
@@ -434,10 +418,7 @@ const ShoppingCart = () => {
                   {/* Price */}
                   <div className="mt-auto pt-2 flex items-center justify-between">
                     <div className="font-medium">
-                      {(item.totalPrice / item.quantity).toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
+                      {formatCurrency(item.totalPrice / item.quantity)}
                     </div>
                     
                     <div className="flex items-center gap-1">
@@ -481,10 +462,7 @@ const ShoppingCart = () => {
           <div className="flex justify-between mb-2">
             <span>Subtotal:</span>
             <span className="font-semibold">
-              {cart.subtotal.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
+              {formatCurrency(cart.subtotal)}
             </span>
           </div>
           
@@ -513,10 +491,11 @@ const ShoppingCart = () => {
   
   // Render delivery options step
   const renderDeliveryOptions = () => {
-    // Check if any delivery option is available
-    const hasDeliveryOptions = deliverySettings.pickup.enabled || 
-      deliverySettings.fixedRate.enabled || 
-      deliverySettings.neighborhoodRates.enabled;
+    // Check if deliverySettings is defined and if any delivery option is available
+    const hasDeliveryOptions = 
+      deliverySettings?.pickup?.enabled || 
+      deliverySettings?.fixedRate?.enabled || 
+      deliverySettings?.neighborhoodRates?.enabled;
     
     if (!hasDeliveryOptions) {
       return (
@@ -542,7 +521,7 @@ const ShoppingCart = () => {
           className="flex flex-col gap-4"
         >
           {/* Pickup option */}
-          {deliverySettings.pickup.enabled && (
+          {deliverySettings?.pickup?.enabled && (
             <div className="flex items-start space-x-3 border p-4 rounded-md">
               <RadioGroupItem value="pickup" id="pickup" className="mt-1" />
               <div>
@@ -554,22 +533,19 @@ const ShoppingCart = () => {
           )}
           
           {/* Fixed rate delivery */}
-          {deliverySettings.fixedRate.enabled && (
+          {deliverySettings?.fixedRate?.enabled && (
             <div className="flex items-start space-x-3 border p-4 rounded-md">
               <RadioGroupItem value="fixedRate" id="fixedRate" className="mt-1" />
               <div>
                 <Label htmlFor="fixedRate" className="font-medium">Entrega com Taxa Fixa</Label>
                 <p className="text-sm text-gray-500 mt-1">{deliverySettings.fixedRate.description}</p>
-                <p className="text-sm font-medium mt-2">{deliverySettings.fixedRate.fee.toLocaleString('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                })}</p>
+                <p className="text-sm font-medium mt-2">{formatCurrency(deliverySettings.fixedRate.fee)}</p>
               </div>
             </div>
           )}
           
           {/* Neighborhood delivery */}
-          {deliverySettings.neighborhoodRates.enabled && deliverySettings.neighborhoodRates.neighborhoods.length > 0 && (
+          {deliverySettings?.neighborhoodRates?.enabled && deliverySettings.neighborhoodRates.neighborhoods.length > 0 && (
             <div className="flex items-start space-x-3 border p-4 rounded-md">
               <RadioGroupItem value="neighborhood" id="neighborhood" className="mt-1" />
               <div className="w-full">
@@ -590,10 +566,7 @@ const ShoppingCart = () => {
                       <option value="">Selecione um bairro</option>
                       {deliverySettings.neighborhoodRates.neighborhoods.map((neighborhood) => (
                         <option key={neighborhood.id} value={neighborhood.id}>
-                          {neighborhood.name} - {neighborhood.fee.toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          })}
+                          {neighborhood.name} - {formatCurrency(neighborhood.fee)}
                         </option>
                       ))}
                     </select>
@@ -609,30 +582,21 @@ const ShoppingCart = () => {
           <div className="flex justify-between mb-2">
             <span>Subtotal:</span>
             <span>
-              {cart.subtotal.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
+              {formatCurrency(cart.subtotal)}
             </span>
           </div>
           
           <div className="flex justify-between mb-2">
             <span>Taxa de Entrega:</span>
             <span>
-              {deliveryCost.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
+              {formatCurrency(deliveryCost)}
             </span>
           </div>
           
           <div className="flex justify-between font-bold">
             <span>Total:</span>
             <span>
-              {calculateTotal().toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
+              {formatCurrency(calculateTotal())}
             </span>
           </div>
           
@@ -761,10 +725,7 @@ const ShoppingCart = () => {
               <div className="flex justify-between mb-2">
                 <span>Subtotal:</span>
                 <span>
-                  {cart.subtotal.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
+                  {formatCurrency(cart.subtotal)}
                 </span>
               </div>
               
@@ -775,20 +736,14 @@ const ShoppingCart = () => {
                     : "Taxa de Entrega:"}
                 </span>
                 <span>
-                  {deliveryCost.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
+                  {formatCurrency(deliveryCost)}
                 </span>
               </div>
               
               <div className="flex justify-between font-bold">
                 <span>Total:</span>
                 <span>
-                  {calculateTotal().toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
+                  {formatCurrency(calculateTotal())}
                 </span>
               </div>
               

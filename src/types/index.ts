@@ -1,3 +1,4 @@
+
 export interface Category {
   id: string;
   name: string;
@@ -6,6 +7,7 @@ export interface Category {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  order?: number; // Adicionando campo order para compatibilidade
 }
 
 export interface ProductImage {
@@ -63,7 +65,13 @@ export interface StoreSettings {
     phone: string;
     email: string;
   };
-  whatsappNumber?: string; // Adicionado campo para número de WhatsApp
+  whatsappNumber: string; // Campo para número de WhatsApp
+}
+
+export interface Neighborhood {
+  id: string;
+  name: string;
+  fee: number;
 }
 
 export interface DeliverySettings {
@@ -78,11 +86,7 @@ export interface DeliverySettings {
   };
   neighborhoodRates: {
     enabled: boolean;
-    neighborhoods: {
-      id: string;
-      name: string;
-      fee: number;
-    }[];
+    neighborhoods: Neighborhood[];
   };
 }
 
@@ -94,4 +98,59 @@ export interface User {
   id: string;
   email: string;
   name: string;
+}
+
+// Interfaces para o carrinho de compras
+export interface SelectedVariation {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceModifier: number;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  basePrice: number;
+  selectedVariations: SelectedVariation[];
+  totalPrice: number;
+  imageUrl?: string;
+}
+
+export interface Cart {
+  items: CartItem[];
+  subtotal: number;
+}
+
+// Interface para pedidos
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customer: {
+    name: string;
+    phone: string;
+    address?: {
+      street: string;
+      number: string;
+      complement?: string;
+      district: string;
+    };
+  };
+  items: CartItem[];
+  subtotal: number;
+  deliveryOption: {
+    type: 'pickup' | 'fixedRate' | 'neighborhood';
+    name: string;
+    fee: number;
+    neighborhoodId?: string;
+    neighborhoodName?: string;
+  };
+  total: number;
+  notes?: string;
+  status: string;
+  createdAt: string;
+  whatsappSent: boolean;
 }

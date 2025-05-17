@@ -22,7 +22,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>({ items: [], subtotal: 0 });
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const { storeConfig } = useStoreSettings();
+  
+  // Acesse o contexto de configurações da loja de forma segura com valores padrão
+  // para o caso de não estar disponível durante a renderização inicial
+  const storeSettingsContext = useContext(StoreSettingsContext); 
+  const storeConfig = storeSettingsContext?.storeConfig || { whatsappNumber: '' };
 
   // Load cart from localStorage
   useEffect(() => {
@@ -193,6 +197,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Contexto seguro mesmo se StoreSettingsContext não estiver disponível
   return (
     <CartContext.Provider
       value={{
@@ -212,6 +217,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     </CartContext.Provider>
   );
 }
+
+// Declare o escopo do StoreSettingsContext para o TypeScript
+import { StoreSettingsContext } from './StoreSettingsContext';
 
 export function useCart() {
   const context = useContext(CartContext);
