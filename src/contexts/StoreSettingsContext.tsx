@@ -1,217 +1,223 @@
-import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { StoreSettings, DeliverySettings, StoreConfig } from '../types';
+
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { StoreSettings, SocialLink } from '../types';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface StoreSettingsContextType {
   storeSettings: StoreSettings;
-  deliverySettings: DeliverySettings;
-  storeConfig: StoreConfig;
   isLoading: boolean;
-  updateStoreSettings: (settings: Partial<StoreSettings>) => void;
-  updateDeliverySettings: (settings: Partial<DeliverySettings>) => void;
-  updateStoreConfig: (config: Partial<StoreConfig>) => void;
-  addSocialLink: (name: string, url: string) => void;
-  updateSocialLink: (id: string, name: string, url: string) => void;
-  removeSocialLink: (id: string) => void;
-  addNeighborhood: (name: string, fee: number) => void;
-  updateNeighborhood: (id: string, name: string, fee: number) => void;
-  removeNeighborhood: (id: string) => void;
+  updateStoreSettings: (settings: Partial<StoreSettings>) => Promise<void>;
+  addSocialLink: (socialLink: Omit<SocialLink, 'id'>) => Promise<void>;
+  updateSocialLink: (id: string, socialLink: Partial<Omit<SocialLink, 'id'>>) => Promise<void>;
+  removeSocialLink: (id: string) => Promise<void>;
 }
 
-const initialStoreSettings: StoreSettings = {
+const defaultSettings: StoreSettings = {
   storeName: 'Gordopods',
   logo: '',
   banner: '',
-  primaryColor: '#9b87f5',
-  secondaryColor: '#6E59A5',
-  description: 'Os melhores pods da região!',
-  whatsappNumber: '5547999999999',  // Adicionando o valor inicial do whatsappNumber
-  socialLinks: [
-    { id: '1', name: 'Instagram', url: 'https://instagram.com/gordopods' },
-  ],
+  primaryColor: '#6E56CF',
+  secondaryColor: '#FF8B3E',
+  description: '',
+  socialLinks: [],
   contactInfo: {
     phone: '',
     email: '',
   },
-};
-
-const initialDeliverySettings: DeliverySettings = {
-  pickup: {
-    enabled: true,
-    instructions: 'Retire em nossa loja central entre 10h e 20h.',
-  },
-  fixedRate: {
-    enabled: true,
-    fee: 5.00,
-    description: 'Taxa fixa para toda a cidade',
-  },
-  neighborhoodRates: {
-    enabled: false,
-    neighborhoods: [
-      { id: '1', name: 'Centro', fee: 5.00 },
-      { id: '2', name: 'Zona Sul', fee: 8.00 },
-    ],
-  },
-};
-
-const initialStoreConfig: StoreConfig = {
-  whatsappNumber: '5547999999999',
+  whatsappNumber: '',
 };
 
 const StoreSettingsContext = createContext<StoreSettingsContextType | undefined>(undefined);
 
-export function StoreSettingsProvider({ children }: { children: ReactNode }) {
-  const [storeSettings, setStoreSettings] = useState<StoreSettings>(initialStoreSettings);
-  const [deliverySettings, setDeliverySettings] = useState<DeliverySettings>(initialDeliverySettings);
-  const [storeConfig, setStoreConfig] = useState<StoreConfig>(initialStoreConfig);
+export const StoreSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load settings from localStorage
+  // Buscar configurações da loja no Supabase ao iniciar
   useEffect(() => {
-    const loadSettings = () => {
+    async function loadStoreSettings() {
+      setIsLoading(true);
       try {
-        const storedStoreSettings = localStorage.getItem('storeSettings');
-        if (storedStoreSettings) {
-          setStoreSettings(JSON.parse(storedStoreSettings));
-        }
+        // Tentar carregar do Supabase primeiro
+        const { data, error } = await supabase
+          .from('store_settings')
+          .select('*')
+          .single();
 
-        const storedDeliverySettings = localStorage.getItem('deliverySettings');
-        if (storedDeliverySettings) {
-          setDeliverySettings(JSON.parse(storedDeliverySettings));
-        }
+        if (error) {
+          console.error('Erro ao carregar configurações da loja:', error);
+          // Se falhar, tentar carregar do localStorage como fallback
+          const storedSettings = localStorage.getItem('storeSettings');
+          if (storedSettings) {
+            setStoreSettings(JSON.parse(storedSettings));
+          }
+        } else if (data) {
+          // Converter os dados do Supabase para o formato esperado
+          const socialLinks: SocialLink[] = [];
+          if (data.facebook_url) {
+            socialLinks.push({ id: 'facebook', name: 'Facebook', url: data.facebook_url });
+          }
+          if (data.instagram_url) {
+            socialLinks.push({ id: 'instagram', name: 'Instagram', url: data.instagram_url });
+          }
 
-        const storedStoreConfig = localStorage.getItem('storeConfig');
-        if (storedStoreConfig) {
-          setStoreConfig(JSON.parse(storedStoreConfig));
+          const settings: StoreSettings = {
+            storeName: data.store_name,
+            logo: data.logo_url || '',
+            banner: data.banner_url || '',
+            primaryColor: '#6E56CF', // Usar valor padrão
+            secondaryColor: '#FF8B3E', // Usar valor padrão
+            description: data.store_description || '',
+            socialLinks: socialLinks,
+            contactInfo: {
+              phone: '',
+              email: '',
+            },
+            whatsappNumber: data.whatsapp_number || '',
+          };
+
+          setStoreSettings(settings);
+          // Guardar também no localStorage para fallback
+          localStorage.setItem('storeSettings', JSON.stringify(settings));
         }
       } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('Erro inesperado ao carregar configurações da loja:', error);
+        // Tentar carregar do localStorage como último recurso
+        const storedSettings = localStorage.getItem('storeSettings');
+        if (storedSettings) {
+          setStoreSettings(JSON.parse(storedSettings));
+        }
       } finally {
         setIsLoading(false);
       }
-    };
+    }
 
-    loadSettings();
+    loadStoreSettings();
   }, []);
 
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem('storeSettings', JSON.stringify(storeSettings));
-      localStorage.setItem('deliverySettings', JSON.stringify(deliverySettings));
-      localStorage.setItem('storeConfig', JSON.stringify(storeConfig));
+  // Salvar configurações da loja no Supabase sempre que houver mudanças
+  const updateStoreSettings = async (settings: Partial<StoreSettings>) => {
+    try {
+      const updatedSettings = { ...storeSettings, ...settings };
+      setStoreSettings(updatedSettings);
+
+      // Salvar no localStorage como backup
+      localStorage.setItem('storeSettings', JSON.stringify(updatedSettings));
+
+      // Preparar dados para o formato do Supabase
+      const supabaseData = {
+        store_name: updatedSettings.storeName,
+        logo_url: updatedSettings.logo,
+        banner_url: updatedSettings.banner,
+        store_description: updatedSettings.description,
+        whatsapp_number: updatedSettings.whatsappNumber,
+        facebook_url: updatedSettings.socialLinks.find(l => l.name === 'Facebook')?.url || null,
+        instagram_url: updatedSettings.socialLinks.find(l => l.name === 'Instagram')?.url || null,
+      };
+
+      // Verificar se já existe um registro
+      const { data: existingData, error: queryError } = await supabase
+        .from('store_settings')
+        .select('id')
+        .limit(1);
+
+      if (queryError) {
+        console.error('Erro ao verificar configurações existentes:', queryError);
+        throw queryError;
+      }
+
+      let saveError;
+      if (existingData && existingData.length > 0) {
+        // Atualizar registro existente
+        const { error } = await supabase
+          .from('store_settings')
+          .update(supabaseData)
+          .eq('id', existingData[0].id);
+        
+        saveError = error;
+      } else {
+        // Inserir novo registro
+        const { error } = await supabase
+          .from('store_settings')
+          .insert([supabaseData]);
+        
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Erro ao salvar configurações da loja no Supabase:', saveError);
+        toast.error('Erro ao salvar configurações da loja. Tente novamente.');
+      } else {
+        toast.success('Configurações da loja salvas com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar configurações:', error);
+      toast.error('Erro ao salvar configurações da loja. Tente novamente.');
     }
-  }, [storeSettings, deliverySettings, storeConfig, isLoading]);
-
-  const updateStoreSettings = (settings: Partial<StoreSettings>) => {
-    setStoreSettings(prev => ({ ...prev, ...settings }));
-    toast.success('Configurações da loja atualizadas!');
   };
 
-  const updateDeliverySettings = (settings: Partial<DeliverySettings>) => {
-    setDeliverySettings(prev => ({ ...prev, ...settings }));
-    toast.success('Configurações de entrega atualizadas!');
+  const addSocialLink = async (socialLink: Omit<SocialLink, 'id'>) => {
+    try {
+      const newLink = {
+        ...socialLink,
+        id: crypto.randomUUID(),
+      };
+      
+      const updatedLinks = [...storeSettings.socialLinks, newLink];
+      await updateStoreSettings({ socialLinks: updatedLinks });
+      toast.success('Link social adicionado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao adicionar link social:', error);
+      toast.error('Erro ao adicionar link social. Tente novamente.');
+    }
   };
 
-  const updateStoreConfig = (config: Partial<StoreConfig>) => {
-    setStoreConfig(prev => ({ ...prev, ...config }));
-    toast.success('Configurações gerais atualizadas!');
+  const updateSocialLink = async (id: string, updates: Partial<Omit<SocialLink, 'id'>>) => {
+    try {
+      const updatedLinks = storeSettings.socialLinks.map((link) =>
+        link.id === id ? { ...link, ...updates } : link
+      );
+      
+      await updateStoreSettings({ socialLinks: updatedLinks });
+      toast.success('Link social atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar link social:', error);
+      toast.error('Erro ao atualizar link social. Tente novamente.');
+    }
   };
 
-  // Social links management
-  const addSocialLink = (name: string, url: string) => {
-    const newLink = { id: crypto.randomUUID(), name, url };
-    setStoreSettings(prev => ({
-      ...prev,
-      socialLinks: [...prev.socialLinks, newLink],
-    }));
-    toast.success('Link social adicionado!');
-  };
-
-  const updateSocialLink = (id: string, name: string, url: string) => {
-    setStoreSettings(prev => ({
-      ...prev,
-      socialLinks: prev.socialLinks.map(link =>
-        link.id === id ? { ...link, name, url } : link
-      ),
-    }));
-    toast.success('Link social atualizado!');
-  };
-
-  const removeSocialLink = (id: string) => {
-    setStoreSettings(prev => ({
-      ...prev,
-      socialLinks: prev.socialLinks.filter(link => link.id !== id),
-    }));
-    toast.success('Link social removido!');
-  };
-
-  // Neighborhood management
-  const addNeighborhood = (name: string, fee: number) => {
-    const newNeighborhood = { id: crypto.randomUUID(), name, fee };
-    setDeliverySettings(prev => ({
-      ...prev,
-      neighborhoodRates: {
-        ...prev.neighborhoodRates,
-        neighborhoods: [...prev.neighborhoodRates.neighborhoods, newNeighborhood],
-      },
-    }));
-    toast.success('Bairro adicionado!');
-  };
-
-  const updateNeighborhood = (id: string, name: string, fee: number) => {
-    setDeliverySettings(prev => ({
-      ...prev,
-      neighborhoodRates: {
-        ...prev.neighborhoodRates,
-        neighborhoods: prev.neighborhoodRates.neighborhoods.map(neighborhood =>
-          neighborhood.id === id ? { ...neighborhood, name, fee } : neighborhood
-        ),
-      },
-    }));
-    toast.success('Bairro atualizado!');
-  };
-
-  const removeNeighborhood = (id: string) => {
-    setDeliverySettings(prev => ({
-      ...prev,
-      neighborhoodRates: {
-        ...prev.neighborhoodRates,
-        neighborhoods: prev.neighborhoodRates.neighborhoods.filter(
-          neighborhood => neighborhood.id !== id
-        ),
-      },
-    }));
-    toast.success('Bairro removido!');
+  const removeSocialLink = async (id: string) => {
+    try {
+      const updatedLinks = storeSettings.socialLinks.filter((link) => link.id !== id);
+      await updateStoreSettings({ socialLinks: updatedLinks });
+      toast.success('Link social removido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover link social:', error);
+      toast.error('Erro ao remover link social. Tente novamente.');
+    }
   };
 
   return (
     <StoreSettingsContext.Provider
       value={{
         storeSettings,
-        deliverySettings,
-        storeConfig,
         isLoading,
         updateStoreSettings,
-        updateDeliverySettings,
-        updateStoreConfig,
         addSocialLink,
         updateSocialLink,
         removeSocialLink,
-        addNeighborhood,
-        updateNeighborhood,
-        removeNeighborhood,
       }}
     >
       {children}
     </StoreSettingsContext.Provider>
   );
-}
+};
 
-export function useStoreSettings() {
+export const useStoreSettings = () => {
   const context = useContext(StoreSettingsContext);
   if (context === undefined) {
-    throw new Error('useStoreSettings must be used within a StoreSettingsProvider');
+    throw new Error('useStoreSettings deve ser usado dentro de um StoreSettingsProvider');
   }
   return context;
-}
+};

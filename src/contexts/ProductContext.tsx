@@ -1,27 +1,27 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Product, ProductImage, ProductVariationGroup, ProductVariationOption } from '../types';
 import { toast } from 'sonner';
 import { useCategories } from './CategoryContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProductContextType {
   products: Product[];
   isLoading: boolean;
-  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => string;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  toggleProductStatus: (id: string) => void;
-  addProductImage: (productId: string, url: string, isMain?: boolean) => void;
-  updateProductImage: (productId: string, imageId: string, updates: Partial<Omit<ProductImage, 'id'>>) => void;
-  removeProductImage: (productId: string, imageId: string) => void;
-  reorderProductImages: (productId: string, imageIds: string[]) => void;
-  setMainProductImage: (productId: string, imageId: string) => void;
-  addVariationGroup: (productId: string, group: Omit<ProductVariationGroup, 'id'>) => string;
-  updateVariationGroup: (productId: string, groupId: string, updates: Partial<Omit<ProductVariationGroup, 'id'>>) => void;
-  removeVariationGroup: (productId: string, groupId: string) => void;
-  addVariationOption: (productId: string, groupId: string, option: Omit<ProductVariationOption, 'id'>) => string;
-  updateVariationOption: (productId: string, groupId: string, optionId: string, updates: Partial<Omit<ProductVariationOption, 'id'>>) => void;
-  removeVariationOption: (productId: string, groupId: string, optionId: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  toggleProductStatus: (id: string) => Promise<void>;
+  addProductImage: (productId: string, url: string, isMain?: boolean) => Promise<void>;
+  updateProductImage: (productId: string, imageId: string, updates: Partial<Omit<ProductImage, 'id'>>) => Promise<void>;
+  removeProductImage: (productId: string, imageId: string) => Promise<void>;
+  reorderProductImages: (productId: string, imageIds: string[]) => Promise<void>;
+  setMainProductImage: (productId: string, imageId: string) => Promise<void>;
+  addVariationGroup: (productId: string, group: Omit<ProductVariationGroup, 'id'>) => Promise<string>;
+  updateVariationGroup: (productId: string, groupId: string, updates: Partial<Omit<ProductVariationGroup, 'id'>>) => Promise<void>;
+  removeVariationGroup: (productId: string, groupId: string) => Promise<void>;
+  addVariationOption: (productId: string, groupId: string, option: Omit<ProductVariationOption, 'id'>) => Promise<string>;
+  updateVariationOption: (productId: string, groupId: string, optionId: string, updates: Partial<Omit<ProductVariationOption, 'id'>>) => Promise<void>;
+  removeVariationOption: (productId: string, groupId: string, optionId: string) => Promise<void>;
   getProductById: (id: string) => Product | undefined;
   getProductsByCategory: (categoryId: string) => Product[];
   getActiveProducts: () => Product[];
@@ -122,20 +122,126 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const { categories } = useCategories();
   
-  // Load products from localStorage on mount
+  // Carregar produtos do Supabase
   useEffect(() => {
-    const loadProducts = () => {
+    const loadProducts = async () => {
       try {
+        setIsLoading(true);
+        
+        // Tentar carregar do Supabase
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*');
+
+        if (productsError) {
+          console.error('Erro ao carregar produtos do Supabase:', productsError);
+          
+          // Carregar do localStorage como fallback
+          const storedProducts = localStorage.getItem('products');
+          if (storedProducts) {
+            setProducts(JSON.parse(storedProducts));
+          } else {
+            setProducts(initialProducts);
+          }
+          return;
+        }
+
+        if (!productsData || productsData.length === 0) {
+          // Se não houver dados no Supabase, usar dados iniciais
+          setProducts(initialProducts);
+          return;
+        }
+
+        // Carregar imagens dos produtos
+        const productsWithImages = await Promise.all(productsData.map(async (product) => {
+          const { data: imagesData, error: imagesError } = await supabase
+            .from('product_images')
+            .select('*')
+            .eq('product_id', product.id);
+
+          if (imagesError) {
+            console.error(`Erro ao carregar imagens para produto ${product.id}:`, imagesError);
+            return {
+              ...product,
+              images: [],
+              variationGroups: []
+            };
+          }
+
+          // Carregar grupos de variação
+          const { data: variationGroupsData, error: variationGroupsError } = await supabase
+            .from('product_variation_groups')
+            .select('*')
+            .eq('product_id', product.id);
+
+          let variationGroups = [];
+          
+          if (!variationGroupsError && variationGroupsData) {
+            variationGroups = await Promise.all(variationGroupsData.map(async (group) => {
+              const { data: optionsData, error: optionsError } = await supabase
+                .from('product_variation_options')
+                .select('*')
+                .eq('group_id', group.id);
+
+              if (optionsError) {
+                console.error(`Erro ao carregar opções para grupo ${group.id}:`, optionsError);
+                return {
+                  ...group,
+                  options: []
+                };
+              }
+
+              return {
+                id: group.id,
+                name: group.name,
+                required: group.required,
+                multipleSelection: group.multiple_selection,
+                options: optionsData.map(option => ({
+                  id: option.id,
+                  name: option.name,
+                  priceModifier: option.price_modifier
+                }))
+              };
+            }));
+          }
+
+          // Converter para o formato da aplicação
+          return {
+            id: product.id,
+            name: product.name,
+            description: product.description || '',
+            price: product.price,
+            categoryId: product.category_id || '',
+            images: imagesData ? imagesData.map(img => ({
+              id: img.id,
+              url: img.url,
+              isMain: img.is_main,
+              order: img.order_position
+            })).sort((a, b) => a.order - b.order) : [],
+            variationGroups: variationGroups,
+            stockControl: product.stock_control,
+            stockQuantity: product.stock_quantity,
+            autoStockReduction: product.auto_stock_reduction,
+            active: product.active,
+            createdAt: product.created_at,
+            updatedAt: product.updated_at
+          };
+        }));
+
+        setProducts(productsWithImages);
+        
+        // Salvar no localStorage como backup
+        localStorage.setItem('products', JSON.stringify(productsWithImages));
+      } catch (error) {
+        console.error('Erro inesperado ao carregar produtos:', error);
+        
+        // Tentar carregar do localStorage como último recurso
         const storedProducts = localStorage.getItem('products');
         if (storedProducts) {
           setProducts(JSON.parse(storedProducts));
         } else {
-          // Use initial data if no stored data
           setProducts(initialProducts);
         }
-      } catch (error) {
-        console.error('Failed to load products:', error);
-        setProducts(initialProducts);
       } finally {
         setIsLoading(false);
       }
@@ -144,14 +250,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     loadProducts();
   }, []);
   
-  // Save products to localStorage whenever they change
+  // Salvar produtos no localStorage quando mudarem
   useEffect(() => {
     if (!isLoading) {
       localStorage.setItem('products', JSON.stringify(products));
     }
   }, [products, isLoading]);
   
-  // Helper to find product index
+  // Helper para encontrar o índice de um produto
   const findProductIndex = (id: string) => {
     const index = products.findIndex(product => product.id === id);
     if (index === -1) {
@@ -161,62 +267,202 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
 
   // CRUD operations for products
-  const addProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-    
-    const newProduct: Product = {
-      ...product,
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    setProducts(prev => [...prev, newProduct]);
-    toast.success('Produto adicionado com sucesso!');
-    return id;
+  const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const now = new Date().toISOString();
+      const id = crypto.randomUUID();
+      
+      const newProduct: Product = {
+        ...product,
+        id,
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      // Adicionar ao estado local
+      setProducts(prev => [...prev, newProduct]);
+      
+      // Salvar no Supabase
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          id: newProduct.id,
+          name: newProduct.name,
+          description: newProduct.description,
+          price: newProduct.price,
+          category_id: newProduct.categoryId,
+          stock_control: newProduct.stockControl,
+          stock_quantity: newProduct.stockQuantity,
+          auto_stock_reduction: newProduct.autoStockReduction,
+          active: newProduct.active,
+          created_at: newProduct.createdAt,
+          updated_at: newProduct.updatedAt
+        });
+      
+      if (error) {
+        console.error('Erro ao adicionar produto no Supabase:', error);
+        toast.error('Erro ao salvar produto no banco de dados');
+      } else {
+        // Salvar imagens do produto
+        for (const image of newProduct.images) {
+          await supabase
+            .from('product_images')
+            .insert({
+              id: image.id,
+              product_id: newProduct.id,
+              url: image.url,
+              is_main: image.isMain,
+              order_position: image.order
+            });
+        }
+        
+        // Salvar grupos de variação
+        for (const group of newProduct.variationGroups) {
+          const { data: groupData, error: groupError } = await supabase
+            .from('product_variation_groups')
+            .insert({
+              id: group.id,
+              product_id: newProduct.id,
+              name: group.name,
+              required: group.required,
+              multiple_selection: group.multipleSelection
+            })
+            .select();
+          
+          if (!groupError && groupData) {
+            // Salvar opções de variação
+            for (const option of group.options) {
+              await supabase
+                .from('product_variation_options')
+                .insert({
+                  id: option.id,
+                  group_id: group.id,
+                  name: option.name,
+                  price_modifier: option.priceModifier
+                });
+            }
+          }
+        }
+        
+        toast.success('Produto adicionado com sucesso!');
+      }
+      
+      return id;
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+      toast.error('Erro ao adicionar produto');
+      throw error;
+    }
   };
   
-  const updateProduct = (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
     try {
+      const updatedProduct = {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Atualizar no estado local
       setProducts(prev => prev.map(product => 
         product.id === id
-          ? { ...product, ...updates, updatedAt: new Date().toISOString() }
+          ? { ...product, ...updatedProduct }
           : product
       ));
-      toast.success('Produto atualizado com sucesso!');
+      
+      // Atualizar no Supabase
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: updates.name,
+          description: updates.description,
+          price: updates.price,
+          category_id: updates.categoryId,
+          stock_control: updates.stockControl,
+          stock_quantity: updates.stockQuantity,
+          auto_stock_reduction: updates.autoStockReduction,
+          active: updates.active,
+          updated_at: updatedProduct.updatedAt
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error(`Erro ao atualizar produto ${id} no Supabase:`, error);
+        toast.error('Erro ao salvar alterações no banco de dados');
+      } else {
+        toast.success('Produto atualizado com sucesso!');
+      }
     } catch (error) {
-      console.error(`Error updating product ${id}:`, error);
+      console.error(`Erro ao atualizar produto ${id}:`, error);
       toast.error('Erro ao atualizar produto');
+      throw error;
     }
   };
   
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
     try {
+      // Remover do estado local
       setProducts(prev => prev.filter(product => product.id !== id));
-      toast.success('Produto removido com sucesso!');
+      
+      // Remover do Supabase
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error(`Erro ao excluir produto ${id} do Supabase:`, error);
+        toast.error('Erro ao excluir produto do banco de dados');
+      } else {
+        toast.success('Produto removido com sucesso!');
+      }
     } catch (error) {
-      console.error(`Error deleting product ${id}:`, error);
+      console.error(`Erro ao excluir produto ${id}:`, error);
       toast.error('Erro ao remover produto');
+      throw error;
     }
   };
   
-  const toggleProductStatus = (id: string) => {
+  const toggleProductStatus = async (id: string) => {
     try {
+      const product = products.find(p => p.id === id);
+      if (!product) {
+        throw new Error(`Product with ID ${id} not found`);
+      }
+      
+      const newStatus = !product.active;
+      const now = new Date().toISOString();
+      
+      // Atualizar no estado local
       setProducts(prev => prev.map(product => 
         product.id === id
-          ? { ...product, active: !product.active, updatedAt: new Date().toISOString() }
+          ? { ...product, active: newStatus, updatedAt: now }
           : product
       ));
-      toast.success('Status do produto alterado com sucesso!');
+      
+      // Atualizar no Supabase
+      const { error } = await supabase
+        .from('products')
+        .update({
+          active: newStatus,
+          updated_at: now
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error(`Erro ao alterar status do produto ${id} no Supabase:`, error);
+        toast.error('Erro ao salvar alterações no banco de dados');
+      } else {
+        toast.success(`Produto ${newStatus ? 'ativado' : 'desativado'} com sucesso!`);
+      }
     } catch (error) {
-      console.error(`Error toggling product status ${id}:`, error);
+      console.error(`Erro ao alterar status do produto ${id}:`, error);
       toast.error('Erro ao alterar status do produto');
+      throw error;
     }
   };
-  
+
   // Product image operations
-  const addProductImage = (productId: string, url: string, isMain: boolean = false) => {
+  const addProductImage = async (productId: string, url: string, isMain: boolean = false) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -246,7 +492,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateProductImage = (productId: string, imageId: string, updates: Partial<Omit<ProductImage, 'id'>>) => {
+  const updateProductImage = async (productId: string, imageId: string, updates: Partial<Omit<ProductImage, 'id'>>) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -265,7 +511,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const removeProductImage = (productId: string, imageId: string) => {
+  const removeProductImage = async (productId: string, imageId: string) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -294,7 +540,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const reorderProductImages = (productId: string, imageIds: string[]) => {
+  const reorderProductImages = async (productId: string, imageIds: string[]) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -316,7 +562,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const setMainProductImage = (productId: string, imageId: string) => {
+  const setMainProductImage = async (productId: string, imageId: string) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -337,7 +583,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
   
   // Variation group operations
-  const addVariationGroup = (productId: string, group: Omit<ProductVariationGroup, 'id'>) => {
+  const addVariationGroup = async (productId: string, group: Omit<ProductVariationGroup, 'id'>) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -361,7 +607,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateVariationGroup = (productId: string, groupId: string, updates: Partial<Omit<ProductVariationGroup, 'id'>>) => {
+  const updateVariationGroup = async (productId: string, groupId: string, updates: Partial<Omit<ProductVariationGroup, 'id'>>) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -380,7 +626,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const removeVariationGroup = (productId: string, groupId: string) => {
+  const removeVariationGroup = async (productId: string, groupId: string) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -398,7 +644,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   };
   
   // Variation option operations
-  const addVariationOption = (productId: string, groupId: string, option: Omit<ProductVariationOption, 'id'>) => {
+  const addVariationOption = async (productId: string, groupId: string, option: Omit<ProductVariationOption, 'id'>) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -427,7 +673,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const updateVariationOption = (productId: string, groupId: string, optionId: string, updates: Partial<Omit<ProductVariationOption, 'id'>>) => {
+  const updateVariationOption = async (productId: string, groupId: string, optionId: string, updates: Partial<Omit<ProductVariationOption, 'id'>>) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];
@@ -451,7 +697,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const removeVariationOption = (productId: string, groupId: string, optionId: string) => {
+  const removeVariationOption = async (productId: string, groupId: string, optionId: string) => {
     try {
       const productIndex = findProductIndex(productId);
       const productCopy = [...products];

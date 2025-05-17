@@ -1,11 +1,12 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImagePreview } from './image-preview';
-import { ImageUploadForm } from './image-upload-form';
+import { Loader2, Upload } from 'lucide-react';
+import { Input } from './input';
 
 interface ImageUploaderProps {
   onImageUploaded: (url: string) => void;
@@ -26,9 +27,7 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
-  const [urlInput, setUrlInput] = useState('');
-  // Sempre começa com o modo 'file', independente de haver uma URL atual
-  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,49 +58,65 @@ export function ImageUploader({
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      // Upload para o Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('gordopods-assets')
-        .upload(filePath, file);
-
-      if (error) {
-        throw error;
-      }
-
-      // Obter URL pública da imagem
-      const { data: urlData } = supabase.storage
-        .from('gordopods-assets')
-        .getPublicUrl(filePath);
-
-      // Callback com a URL da imagem
-      onImageUploaded(urlData.publicUrl);
+      // Upload para o Supabase Storage com retry
+      let uploadAttempts = 0;
+      let uploadSuccess = false;
+      let uploadError = null;
       
-      toast.success('Imagem enviada com sucesso!');
+      while (uploadAttempts < 3 && !uploadSuccess) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('gordopods-assets')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: uploadAttempts > 0 // Tenta sobrescrever no retry
+            });
+
+          if (error) {
+            uploadError = error;
+            uploadAttempts++;
+            // Aguarda um momento antes de tentar novamente
+            if (uploadAttempts < 3) await new Promise(r => setTimeout(r, 1000));
+          } else {
+            uploadSuccess = true;
+            uploadError = null;
+            
+            // Obter URL pública da imagem
+            const { data: urlData } = supabase.storage
+              .from('gordopods-assets')
+              .getPublicUrl(filePath);
+
+            // Callback com a URL da imagem
+            onImageUploaded(urlData.publicUrl);
+            toast.success('Imagem enviada com sucesso!');
+          }
+        } catch (e) {
+          uploadError = e;
+          uploadAttempts++;
+          if (uploadAttempts < 3) await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      
+      if (!uploadSuccess) {
+        throw uploadError || new Error('Falha ao fazer upload após múltiplas tentativas');
+      }
     } catch (error) {
       console.error('Erro ao fazer upload da imagem:', error);
       toast.error('Erro ao fazer upload da imagem. Tente novamente.');
       
       // Limpar preview em caso de erro
-      if (previewUrl && !currentImageUrl) {
+      if (previewUrl && previewUrl !== currentImageUrl) {
         URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
+        setPreviewUrl(currentImageUrl || null);
       }
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleUrlSubmit = useCallback(() => {
-    if (!urlInput.trim()) return;
-    
-    setPreviewUrl(urlInput);
-    onImageUploaded(urlInput);
-    toast.success('URL da imagem definida com sucesso!');
-  }, [urlInput, onImageUploaded]);
-
   const handleRemoveImage = useCallback(() => {
     // Limpar preview local se houver
-    if (previewUrl && !currentImageUrl) {
+    if (previewUrl && previewUrl !== currentImageUrl) {
       URL.revokeObjectURL(previewUrl);
     }
     
@@ -109,43 +124,57 @@ export function ImageUploader({
     onImageUploaded(''); // Limpar a imagem
   }, [previewUrl, currentImageUrl, onImageUploaded]);
 
-  const toggleUploadMode = useCallback(() => {
-    setUploadMode(prev => prev === 'file' ? 'url' : 'file');
-  }, []);
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <Label>{label}</Label>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={toggleUploadMode}
-          className="text-xs"
-        >
-          {uploadMode === 'file'
-            ? 'Usar URL externa'
-            : 'Fazer upload de arquivo'}
-        </Button>
       </div>
 
-      <ImageUploadForm 
-        isUploading={isUploading}
-        uploadMode={uploadMode}
-        recommendedSize={recommendedSize}
-        onFileChange={handleFileChange}
-        onUrlSubmit={handleUrlSubmit}
-        urlInput={urlInput}
-        onUrlChange={setUrlInput}
-      />
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="flex items-center gap-2"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                {previewUrl ? 'Trocar imagem' : 'Enviar imagem'}
+              </>
+            )}
+          </Button>
+          
+          <Input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={isUploading}
+            className="hidden"
+          />
+        </div>
+
+        {/* Recomendações de dimensões */}
+        {recommendedSize && (
+          <p className="text-xs text-muted-foreground">
+            {recommendedSize}
+          </p>
+        )}
+      </div>
 
       <ImagePreview 
         previewUrl={previewUrl}
         isUploading={isUploading}
         onRemove={handleRemoveImage}
         imageClassName={imageClassName}
-        uploadMode={uploadMode}
       />
     </div>
   );
