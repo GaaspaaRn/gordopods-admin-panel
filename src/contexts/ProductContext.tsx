@@ -226,9 +226,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             active: product.active,
             createdAt: product.created_at,
             updatedAt: product.updated_at
-          } as Product;
+          } as Product; // Explicitly cast to Product type
         }));
 
+        // Set the mapped products to state
         setProducts(productsWithImages);
         
         // Salvar no localStorage como backup
