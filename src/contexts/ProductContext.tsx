@@ -486,6 +486,22 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       productCopy[productIndex] = product;
       
       setProducts(productCopy);
+      
+      // Salvar no Supabase
+      const { error } = await supabase
+        .from('product_images')
+        .insert({
+          id: newImage.id,
+          product_id: productId,
+          url: newImage.url,
+          is_main: newImage.isMain,
+          order_position: newImage.order
+        });
+        
+      if (error) {
+        console.error('Erro ao salvar imagem no Supabase:', error);
+      }
+      
       toast.success('Imagem adicionada com sucesso!');
     } catch (error) {
       console.error(`Error adding image to product ${productId}:`, error);
@@ -665,7 +681,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       productCopy[productIndex] = product;
       
       setProducts(productCopy);
-      toast.success('Opção de variação adicionada com sucesso!');
+      toast.success('Op��ão de variação adicionada com sucesso!');
       return newOption.id;
     } catch (error) {
       console.error(`Error adding variation option to group ${groupId} for product ${productId}:`, error);

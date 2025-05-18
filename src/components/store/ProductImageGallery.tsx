@@ -110,6 +110,7 @@ const ProductImageGallery = ({
             {sortedImages.length > 1 && (
               <>
                 <Button
+                  type="button"
                   variant="outline"
                   size="icon"
                   className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 hover:bg-white"
@@ -123,6 +124,7 @@ const ProductImageGallery = ({
                 </Button>
                 
                 <Button
+                  type="button"
                   variant="outline"
                   size="icon"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/80 hover:bg-white"

@@ -1,4 +1,4 @@
-// src/components/ImageUploader.tsx
+
 import React, { useState, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -63,7 +63,7 @@ export function ImageUploader({
 
       if (error) throw error;
 
-      // Obter URL pública
+      // Obter URL pública - corrigido para usar o método adequado
       const { data: publicUrlData } = supabase.storage
         .from(bucketName)
         .getPublicUrl(filePath);

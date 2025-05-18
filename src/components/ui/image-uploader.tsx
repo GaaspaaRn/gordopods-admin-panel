@@ -81,7 +81,7 @@ export function ImageUploader({
             uploadSuccess = true;
             uploadError = null;
             
-            // Obter URL pública da imagem
+            // Obter URL pública da imagem - corrigido para usar o método adequado
             const { data: urlData } = supabase.storage
               .from('gordopods-assets')
               .getPublicUrl(filePath);

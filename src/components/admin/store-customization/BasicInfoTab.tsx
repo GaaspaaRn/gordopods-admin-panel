@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { ImageUploader } from '@/components/ui/image-uploader';
 import { StoreSettings } from '@/types';
+import { toast } from 'sonner';
 
 interface BasicInfoTabProps {
   storeSettings: StoreSettings;
@@ -25,6 +26,7 @@ export function BasicInfoTab({ storeSettings, onSave }: BasicInfoTabProps) {
   const [logo, setLogo] = useState(storeSettings.logo || '');
   const [banner, setBanner] = useState(storeSettings.banner || '');
   const [description, setDescription] = useState(storeSettings.description || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update local state when storeSettings change (e.g., after saving)
   useEffect(() => {
@@ -34,13 +36,30 @@ export function BasicInfoTab({ storeSettings, onSave }: BasicInfoTabProps) {
     setDescription(storeSettings.description || '');
   }, [storeSettings]);
 
-  const handleSaveBasic = () => {
-    onSave({
-      storeName,
-      logo,
-      banner,
-      description,
-    });
+  const handleSaveBasic = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Validação básica
+      if (!storeName.trim()) {
+        toast.error("O nome da loja é obrigatório");
+        return;
+      }
+      
+      await onSave({
+        storeName,
+        logo,
+        banner,
+        description,
+      });
+      
+      toast.success("Informações da loja atualizadas com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar informações básicas:", error);
+      toast.error("Ocorreu um erro ao salvar as informações.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -95,8 +114,8 @@ export function BasicInfoTab({ storeSettings, onSave }: BasicInfoTabProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={handleSaveBasic}>
-          Salvar Informações
+        <Button onClick={handleSaveBasic} disabled={isSubmitting}>
+          {isSubmitting ? 'Salvando...' : 'Salvar Informações'}
         </Button>
       </CardFooter>
     </Card>
