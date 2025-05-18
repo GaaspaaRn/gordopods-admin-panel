@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Product, ProductImage, ProductVariationGroup, ProductVariationOption } from '../types';
 import { toast } from 'sonner';
@@ -206,7 +205,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             }));
           }
 
-          // Converter para o formato da aplicação
+          // Properly map all properties to match the Product interface
           return {
             id: product.id,
             name: product.name,
@@ -220,14 +219,14 @@ export function ProductProvider({ children }: { children: ReactNode }) {
               order: img.order_position
             })).sort((a, b) => a.order - b.order) : [],
             variationGroups: variationGroups,
-            stockControl: product.stock_control,
-            stockQuantity: product.stock_quantity,
-            autoStockReduction: product.auto_stock_reduction,
-            active: product.active,
+            stockControl: product.stock_control || false,
+            stockQuantity: product.stock_quantity || 0,
+            autoStockReduction: product.auto_stock_reduction || false,
+            active: product.active || false,
             createdAt: product.created_at,
             updatedAt: product.updated_at
-          } as Product; // Explicitly cast to Product type
-        }));
+          } as Product;
+        })) as Product[]; // Explicitly cast the whole array to Product[]
 
         // Set the mapped products to state
         setProducts(productsWithImages);
