@@ -15,6 +15,7 @@ interface ImageUploaderProps {
   label?: string;
   imageClassName?: string;
   recommendedSize?: string;
+  onError?: (error: string) => void;
 }
 
 export function ImageUploader({
@@ -23,7 +24,8 @@ export function ImageUploader({
   folder = 'misc',
   label = 'Imagem',
   imageClassName = 'max-h-40 object-contain',
-  recommendedSize
+  recommendedSize,
+  onError
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
@@ -35,13 +37,17 @@ export function ImageUploader({
 
     // Validação básica de tipo de arquivo
     if (!file.type.startsWith('image/')) {
-      toast.error('O arquivo selecionado não é uma imagem válida');
+      const errorMsg = 'O arquivo selecionado não é uma imagem válida';
+      toast.error(errorMsg);
+      if (onError) onError(errorMsg);
       return;
     }
 
     // Validação de tamanho (máximo de 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem não pode ter mais de 5MB');
+      const errorMsg = 'A imagem não pode ter mais de 5MB';
+      toast.error(errorMsg);
+      if (onError) onError(errorMsg);
       return;
     }
 
@@ -98,7 +104,9 @@ export function ImageUploader({
       }
       
       if (!uploadSuccess) {
-        throw uploadError || new Error('Falha ao fazer upload após múltiplas tentativas');
+        const errorMsg = uploadError?.message || 'Falha ao fazer upload após múltiplas tentativas';
+        if (onError) onError(errorMsg);
+        throw uploadError || new Error(errorMsg);
       }
     } catch (error) {
       console.error('Erro ao fazer upload da imagem:', error);

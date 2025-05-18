@@ -63,7 +63,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase
           .from('categories')
           .select('*')
-          .order('order', { ascending: true });
+          .order('updated_at', { ascending: false });
         
         if (error) {
           console.error('Erro ao carregar categorias do Supabase:', error);
@@ -94,7 +94,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
           }
         } else {
           // Mapear os dados do Supabase para o formato Category
-          const categoriesData = data.map((item) => ({
+          const categoriesData = data.map((item, index) => ({
             id: item.id,
             name: item.name,
             description: item.description || '',
@@ -102,7 +102,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
             active: item.active || true,
             createdAt: item.created_at,
             updatedAt: item.updated_at,
-            order: item.order || 0
+            order: index // Definir a ordem baseado na posição no array
           })) as Category[];
           
           setCategories(categoriesData);
@@ -168,8 +168,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
           description: '',
           active: true,
           created_at: now,
-          updated_at: now,
-          order: newOrder
+          updated_at: now
         });
       
       if (error) {
@@ -281,7 +280,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
       for (const category of updatedCategories) {
         await supabase
           .from('categories')
-          .update({ order: category.order, updated_at: category.updatedAt })
+          .update({ updated_at: category.updatedAt })
           .eq('id', category.id);
       }
       
@@ -311,7 +310,6 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
         await supabase
           .from('categories')
           .update({ 
-            order: category.order,
             updated_at: category.updatedAt 
           })
           .eq('id', category.id);
