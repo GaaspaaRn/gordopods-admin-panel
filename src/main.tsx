@@ -24,6 +24,11 @@ if (import.meta.env.DEV) {
   checkEnvironment().catch(err => 
     logger.error('Falha ao verificar ambiente', err)
   );
+  
+  // Log inicial para garantir que a aplicação está carregando corretamente
+  logger.info('Aplicação Gordopods iniciando...');
+  logger.info(`Ambiente: ${import.meta.env.MODE}`);
+  logger.info(`Versão: ${import.meta.env.VITE_APP_VERSION || 'desenvolvimento'}`);
 }
 
 // Capturar erros não tratados
