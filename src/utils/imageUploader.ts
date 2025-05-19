@@ -1,8 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from './debug';
 
 /**
- * Realiza upload de imagem para o Supabase Storage
+ * Realiza upload de imagem para o Supabase Storage com retries automáticos
  */
 export async function uploadImage(
   file: File,
@@ -29,9 +30,12 @@ export async function uploadImage(
     // Fazer upload para o Supabase Storage com retry automático
     let attempts = 0;
     let error = null;
+    const maxAttempts = 3;
     
-    while (attempts < 3) {
+    while (attempts < maxAttempts) {
       try {
+        logger.info(`Tentativa ${attempts + 1} de upload da imagem ${file.name}`);
+        
         const { data, error: uploadError } = await supabase.storage
           .from(bucketName)
           .upload(filePath, file, {
@@ -41,6 +45,7 @@ export async function uploadImage(
 
         if (uploadError) {
           error = uploadError;
+          logger.warn(`Falha na tentativa ${attempts + 1}:`, uploadError);
           attempts++;
           await new Promise(resolve => setTimeout(resolve, 1000)); // Espera 1s antes de tentar novamente
         } else {
@@ -49,20 +54,22 @@ export async function uploadImage(
             .from(bucketName)
             .getPublicUrl(filePath);
             
+          logger.success('Upload da imagem concluído com sucesso', urlData.publicUrl);
           return urlData.publicUrl;
         }
       } catch (e) {
         error = e;
+        logger.error(`Erro na tentativa ${attempts + 1}:`, e);
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
     // Se chegou aqui, todas as tentativas falharam
-    console.error('Erro no upload após múltiplas tentativas:', error);
+    logger.error('Erro no upload após múltiplas tentativas:', error);
     throw error || new Error('Falha ao fazer upload após múltiplas tentativas');
   } catch (error) {
-    console.error('Erro no upload de imagem:', error);
+    logger.error('Erro no upload de imagem:', error);
     throw error;
   }
 }
@@ -84,13 +91,19 @@ export async function removeImage(
     
     if (!filePath) return false;
     
+    logger.info(`Removendo imagem: ${filePath} do bucket ${bucketName}`);
+    
     const { error } = await supabase.storage
       .from(bucketName)
       .remove([filePath]);
       
+    if (error) {
+      logger.error('Erro ao remover imagem:', error);
+    }
+      
     return !error;
   } catch (error) {
-    console.error('Erro ao remover imagem:', error);
+    logger.error('Erro ao remover imagem:', error);
     return false;
   }
 }
