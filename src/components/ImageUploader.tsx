@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../integrations/supabase/client';
+import { Label } from './ui/label';
 
 interface ImageUploaderProps {
   currentImageUrl?: string;
@@ -12,6 +13,8 @@ interface ImageUploaderProps {
   bucketName?: string;
   folderPath?: string;
   recommendedDimensions?: string;
+  label?: string;
+  imageType?: 'generic' | 'logo' | 'banner' | 'product';
 }
 
 export function ImageUploader({
@@ -19,11 +22,29 @@ export function ImageUploader({
   onImageChange,
   bucketName = 'gordopods-assets',
   folderPath = 'products',
-  recommendedDimensions
+  recommendedDimensions,
+  label,
+  imageType = 'generic'
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Definir recomendações de tamanho com base no tipo de imagem
+  const getSizeRecommendation = () => {
+    if (recommendedDimensions) return recommendedDimensions;
+    
+    switch (imageType) {
+      case 'logo':
+        return 'Tamanho recomendado: 200x80px, formato PNG com transparência';
+      case 'banner':
+        return 'Tamanho recomendado: 1200x400px, formato JPG ou PNG';
+      case 'product':
+        return 'Tamanho recomendado: 800x800px, formato JPG ou PNG';
+      default:
+        return 'Tamanho máximo: 2MB';
+    }
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,6 +65,17 @@ export function ImageUploader({
     try {
       setIsUploading(true);
 
+      // Verificar se o bucket existe
+      const { data: buckets, error: bucketsError } = await supabase
+        .storage
+        .listBuckets();
+        
+      if (bucketsError) {
+        console.error('Erro ao listar buckets:', bucketsError);
+        toast.error('Erro ao verificar storage. Verifique as permissões.');
+        return;
+      }
+      
       // Criar URL de preview local
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
@@ -53,29 +85,61 @@ export function ImageUploader({
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${folderPath}/${fileName}`;
 
-      // Upload para o Supabase Storage
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Upload para o Supabase Storage com retry
+      let uploadAttempts = 0;
+      let uploadSuccess = false;
+      let uploadError = null;
+      
+      while (uploadAttempts < 3 && !uploadSuccess) {
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucketName)
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: uploadAttempts > 0 // Tentar sobrescrever no retry
+            });
 
-      if (error) throw error;
+          if (error) {
+            uploadError = error;
+            uploadAttempts++;
+            // Aguarda um momento antes de tentar novamente
+            if (uploadAttempts < 3) await new Promise(r => setTimeout(r, 1000));
+          } else {
+            uploadSuccess = true;
+            uploadError = null;
+            
+            // Obter URL pública da imagem
+            const { data: urlData } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl(filePath);
 
-      // Obter URL pública - corrigido para usar o método adequado
-      const { data: publicUrlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(filePath);
-
-      if (!publicUrlData.publicUrl) throw new Error('Falha ao obter URL pública');
-
-      // Notificar componente pai sobre a nova URL
-      onImageChange(publicUrlData.publicUrl);
-      toast.success('Imagem enviada com sucesso!');
+            // Callback com a URL da imagem
+            onImageChange(urlData.publicUrl);
+            toast.success('Imagem enviada com sucesso!');
+          }
+        } catch (e) {
+          uploadError = e;
+          uploadAttempts++;
+          if (uploadAttempts < 3) await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      
+      if (!uploadSuccess) {
+        const errorMsg = uploadError?.message || 'Falha ao fazer upload após múltiplas tentativas';
+        throw new Error(errorMsg);
+      }
     } catch (error) {
-      console.error('Erro no upload:', error);
-      toast.error('Falha ao enviar imagem. Tente novamente.');
+      console.error('Erro detalhado no upload:', error);
+      
+      // Mensagens de erro específicas
+      if (error.statusCode === 400) {
+        toast.error('Formato de arquivo não suportado.');
+      } else if (error.statusCode === 403) {
+        toast.error('Permissão negada. Verifique as políticas RLS do Storage.');
+      } else {
+        toast.error('Falha ao enviar imagem. Tente novamente.');
+      }
+      
       // Manter a URL atual em caso de erro
       setPreviewUrl(currentImageUrl || null);
     } finally {
@@ -93,6 +157,8 @@ export function ImageUploader({
 
   return (
     <div className="space-y-4">
+      {label && <Label>{label}</Label>}
+      
       {/* Preview da imagem */}
       {previewUrl && (
         <div className="relative w-full max-w-[300px] h-[200px] border rounded-md overflow-hidden">
@@ -100,6 +166,9 @@ export function ImageUploader({
             src={previewUrl}
             alt="Preview"
             className="w-full h-full object-contain"
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = "https://via.placeholder.com/100?text=Erro";
+            }}
           />
           <button
             type="button"
@@ -146,11 +215,9 @@ export function ImageUploader({
         </div>
 
         {/* Recomendações de dimensões */}
-        {recommendedDimensions && (
-          <p className="text-xs text-muted-foreground">
-            {recommendedDimensions}
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {getSizeRecommendation()}
+        </p>
       </div>
     </div>
   );
