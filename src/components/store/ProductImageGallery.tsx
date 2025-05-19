@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ProductImage } from '@/types';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -19,17 +19,23 @@ const ProductImageGallery = ({
 }: ProductImageGalleryProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [imgError, setImgError] = useState<Record<string, boolean>>({});
   
   if (!images || images.length === 0) {
     return (
-      <div className={cn("bg-gray-200 aspect-square flex items-center justify-center", className)}>
-        <span className="text-gray-400">Sem imagem</span>
+      <div className={cn("bg-gray-100 aspect-square flex items-center justify-center rounded-md", className)}>
+        <div className="flex flex-col items-center text-gray-400">
+          <ImageOff size={40} />
+          <span className="mt-2">Sem imagem</span>
+        </div>
       </div>
     );
   }
   
   // Sort images by order property
-  const sortedImages = [...images].sort((a, b) => a.order - b.order);
+  const sortedImages = [...images]
+    .sort((a, b) => a.order - b.order)
+    .filter(img => img.url && img.url.trim() !== '');
   
   // Make sure main image is first
   const mainImage = sortedImages.find(img => img.isMain);
@@ -41,6 +47,18 @@ const ProductImageGallery = ({
     }
   }
   
+  // Se depois da filtragem não há imagens, mostrar placeholder
+  if (sortedImages.length === 0) {
+    return (
+      <div className={cn("bg-gray-100 aspect-square flex items-center justify-center rounded-md", className)}>
+        <div className="flex flex-col items-center text-gray-400">
+          <ImageOff size={40} />
+          <span className="mt-2">Sem imagem válida</span>
+        </div>
+      </div>
+    );
+  }
+  
   const handlePrevImage = () => {
     setActiveIndex((prev) => (prev === 0 ? sortedImages.length - 1 : prev - 1));
   };
@@ -49,20 +67,38 @@ const ProductImageGallery = ({
     setActiveIndex((prev) => (prev === sortedImages.length - 1 ? 0 : prev + 1));
   };
 
+  // Se a imagem ativa tem erro, usar a próxima disponível
+  if (imgError[sortedImages[activeIndex]?.id]) {
+    const nextValidIndex = sortedImages.findIndex((img, idx) => 
+      !imgError[img.id] && idx !== activeIndex
+    );
+    
+    if (nextValidIndex !== -1) {
+      setActiveIndex(nextValidIndex);
+    }
+  }
+
+  const handleImageError = (id: string) => {
+    setImgError(prev => ({
+      ...prev,
+      [id]: true
+    }));
+  };
+
   return (
     <div className={cn("space-y-2", className)}>
       {/* Main image */}
       <div 
-        className="aspect-square bg-gray-100 rounded-md overflow-hidden cursor-pointer"
+        className="aspect-square bg-gray-50 rounded-md overflow-hidden cursor-pointer"
         onClick={() => setShowModal(true)}
       >
         <img
-          src={sortedImages[activeIndex].url}
+          src={imgError[sortedImages[activeIndex].id] 
+            ? "https://via.placeholder.com/400?text=Imagem+Indisponível" 
+            : sortedImages[activeIndex].url}
           alt={`${productName} - Imagem ${activeIndex + 1}`}
           className="w-full h-full object-cover"
-          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-            e.currentTarget.src = "https://via.placeholder.com/400?text=Imagem";
-          }}
+          onError={() => handleImageError(sortedImages[activeIndex].id)}
         />
       </div>
       
@@ -76,18 +112,20 @@ const ProductImageGallery = ({
                 "w-16 h-16 rounded border-2 overflow-hidden flex-shrink-0",
                 index === activeIndex 
                   ? "border-primary" 
-                  : "border-transparent hover:border-gray-300"
+                  : "border-transparent hover:border-gray-300",
+                imgError[image.id] ? "bg-gray-100" : ""
               )}
               onClick={() => setActiveIndex(index)}
               aria-label={`Ver imagem ${index + 1}`}
+              disabled={imgError[image.id]}
             >
               <img
-                src={image.url}
+                src={imgError[image.id] 
+                  ? "https://via.placeholder.com/100?text=Indisponível" 
+                  : image.url}
                 alt={`${productName} - Miniatura ${index + 1}`}
                 className="w-full h-full object-cover"
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = "https://via.placeholder.com/100?text=Miniatura";
-                }}
+                onError={() => handleImageError(image.id)}
               />
             </button>
           ))}
@@ -99,12 +137,12 @@ const ProductImageGallery = ({
         <DialogContent className="sm:max-w-[80vw] p-1 md:p-2 max-h-[90vh]">
           <div className="relative h-full max-h-[80vh]">
             <img
-              src={sortedImages[activeIndex].url}
+              src={imgError[sortedImages[activeIndex].id] 
+                ? "https://via.placeholder.com/800?text=Imagem+Indisponível" 
+                : sortedImages[activeIndex].url}
               alt={`${productName} - Imagem ampliada ${activeIndex + 1}`}
               className="w-full h-full object-contain"
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                e.currentTarget.src = "https://via.placeholder.com/800?text=Imagem";
-              }}
+              onError={() => handleImageError(sortedImages[activeIndex].id)}
             />
             
             {sortedImages.length > 1 && (

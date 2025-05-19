@@ -1,6 +1,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { logger } from './debug';
+import { ensureStorageBucket } from '@/integrations/supabase/client';
+
+// Logger simples para depuração
+const logger = {
+  info: (message: string, ...args: any[]) => console.info(`[INFO] ${message}`, ...args),
+  success: (message: string, ...args: any[]) => console.log(`[SUCCESS] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[WARN] ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[ERROR] ${message}`, ...args),
+};
 
 /**
  * Realiza upload de imagem para o Supabase Storage com retries automáticos
@@ -21,6 +29,9 @@ export async function uploadImage(
     if (file.size > 5 * 1024 * 1024) {
       throw new Error('Arquivo muito grande: Máximo 5MB permitido.');
     }
+
+    // Garantir que o bucket exista
+    await ensureStorageBucket();
 
     // Gerar nome único para o arquivo
     const fileExt = file.name.split('.').pop();
@@ -44,6 +55,25 @@ export async function uploadImage(
           });
 
         if (uploadError) {
+          // Erro específico para buckets inexistentes
+          if (uploadError.message?.includes('bucket') && uploadError.message?.includes('not found')) {
+            logger.warn('Bucket não encontrado, tentando criar...');
+            // Tentar criar bucket
+            const { error: createError } = await supabase.storage.createBucket(bucketName, {
+              public: true
+            });
+            
+            if (createError) {
+              logger.error('Erro ao criar bucket:', createError);
+            } else {
+              logger.success('Bucket criado com sucesso');
+              // Continuar com próxima tentativa
+              attempts++;
+              await new Promise(resolve => setTimeout(resolve, 500)); 
+              continue;
+            }
+          }
+          
           error = uploadError;
           logger.warn(`Falha na tentativa ${attempts + 1}:`, uploadError);
           attempts++;

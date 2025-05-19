@@ -19,15 +19,66 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   }
 });
 
+// Função para garantir que o bucket exista
+export async function ensureStorageBucket() {
+  try {
+    // Verificar se o bucket já existe
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    
+    if (listError) {
+      console.error('Erro ao listar buckets:', listError);
+      return false;
+    }
+    
+    // Se o bucket não existe, tentar criá-lo
+    if (!buckets.find(bucket => bucket.name === 'gordopods-assets')) {
+      console.log('Bucket não encontrado, tentando criar...');
+      
+      const { data, error } = await supabase.storage.createBucket('gordopods-assets', {
+        public: true,
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+        fileSizeLimit: 5 * 1024 * 1024 // 5MB
+      });
+      
+      if (error) {
+        console.error('Erro ao criar bucket de armazenamento:', error);
+        return false;
+      }
+      
+      console.log('Bucket criado com sucesso:', data);
+    } else {
+      console.log('Bucket gordopods-assets já existe');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao verificar/criar bucket:', error);
+    return false;
+  }
+}
+
 // Função de utilidade para verificar conexão
 export async function checkSupabaseConnection() {
   try {
     const { data, error } = await supabase.from('products').select('count()', { count: 'exact' });
     if (error) throw error;
     console.log('Conexão com Supabase estabelecida com sucesso');
+    
+    // Garantir que o bucket exista após verificar a conexão
+    await ensureStorageBucket();
+    
     return true;
   } catch (error) {
     console.error('Erro ao conectar com Supabase:', error);
     return false;
   }
 }
+
+// Chamar a verificação de conexão ao carregar o cliente
+checkSupabaseConnection().then(connected => {
+  if (connected) {
+    console.log('Supabase inicializado com sucesso');
+  } else {
+    console.error('Falha ao inicializar Supabase');
+  }
+});
